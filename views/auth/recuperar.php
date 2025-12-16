@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Recuperar Contraseña - Henríquez y Asociados</title>
-    <link rel="stylesheet" href="/web_polizas/public/css/auth/recuperar.css">
+    <link rel="stylesheet" href="/Gestion_de_Polizas/public/css/auth/recuperar.css">
 </head>
 <body>
     <div class="auth-container">

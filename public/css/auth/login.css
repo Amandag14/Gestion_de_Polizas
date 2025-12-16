@@ -28,7 +28,7 @@
 body {
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     /* FONDO CON IMAGEN */
-    background-image: url('http://localhost/web_polizas/public/img/fondo.png'); 
+    background-image: url('http://localhost/Gestion_de_Polizas/public/img/fondo.png'); 
     background-size: cover;
     background-position: center;
     background-repeat: no-repeat;
@@ -63,7 +63,7 @@ body::before {
     box-shadow: var(--shadow-lg);
     padding: 40px;
     width: 100%;
-    max-width: 450px;
+    max-width: 500px;
     animation: fadeInUp 0.5s ease;
     position: relative;
     z-index: 1;
@@ -86,11 +86,13 @@ body::before {
 .logo-container {
     text-align: center;
     margin-bottom: 25px;
+    padding-top: 25px;
 }
 
 .logo-ha {
-    width: 120px;
-    height: 120px;
+    max-width: 250px;
+    width: 100%;
+    height: auto;
     object-fit: contain;
     animation: fadeIn 0.6s ease;
 }
@@ -434,7 +436,7 @@ hr {
         padding: 30px 20px;
     }
     
-    .logo-utp {
+    .logo-ha {
         width: 100px;
         height: 100px;
     }
@@ -479,7 +481,7 @@ hr {
         padding: 10px;
     }
     
-    .logo-utp {
+    .logo-ha {
         width: 80px;
         height: 80px;
     }

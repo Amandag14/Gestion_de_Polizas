@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dashboard Cliente - Henríquez & Asociados</title>
-    <link rel="stylesheet" href="http://localhost/web_polizas/public/css/cliente/dashboardCliente.css">
+    <link rel="stylesheet" href="http://localhost/Gestion_de_Polizas/public/css/cliente/dashboardCliente.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
 <body>
@@ -371,7 +371,7 @@
                 <i class="fas fa-user-secret"></i>
                 Privacidad
             </a>
-            <a href="#" class="footer-link">
+            <a href="" class="footer-link">
                 <i class="fas fa-sign-out-alt"></i>
                 Salir
             </a>

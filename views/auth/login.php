@@ -1,16 +1,4 @@
 <?php
-/**
- * Página de Login - Henriquez & Asociados
- * Sistema de Gestión de Pólizas de Seguros
- * 
- * CARACTERÍSTICAS DE SEGURIDAD:
- * - Máximo 5 intentos fallidos permitidos
- * - Bloqueo temporal de 30 minutos después del 5to intento
- * - Validación de roles (Cliente/Admin)
- * - Reset automático de intentos después del bloqueo
- * - Protección contra inyección SQL
- */
-
 // Configuración de errores para desarrollo (eliminar en producción)
 error_reporting(E_ALL);
 ini_set('display_errors', 1);
@@ -20,7 +8,7 @@ session_start();
 
 // Definir APP_URL si no está definida
 if (!defined('APP_URL')) {
-    define('APP_URL', 'http://localhost/web_polizas');
+    define('APP_URL', 'http://localhost/Gestion_de_Polizas');
 }
 
 // Incluir archivos de configuración
@@ -284,20 +272,19 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Login - Henriquez & Asociados</title>
-    <link rel="stylesheet" href="/web_polizas/public/css/auth/login.css">
+    <link rel="stylesheet" href="/Gestion_de_Polizas/public/css/auth/login.css">
 </head>
 <body>
     <div class="auth-container">
         <!-- Logo y Nombre de la Empresa -->
         <div class="logo-container">
-            <img src="/web_polizas/public/img/logo.png" alt="Logo Henriquez & Asociados" class="logo-utp"
+            <img src="/Gestion_de_Polizas/public/img/HaLogo-1.png" alt="Logo Henriquez & Asociados" class="logo-ha"
                  onerror="this.style.display='none'">
         </div>
 
         <!-- Header del Login -->
         <div class="login-header">
-            <h1>Henriquez & Asociados</h1>
-            <p>Sistema de Gestión de Pólizas de Seguros</p>
+            <h1>Sistema de Gestión de Pólizas de Seguros</h1>
         </div>
 
         <!-- Mensajes de Error/Éxito -->
