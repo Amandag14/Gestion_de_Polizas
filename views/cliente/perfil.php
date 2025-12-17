@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Mi Perfil - Henríquez y Asociados</title>
-    <link rel="stylesheet" href="http://localhost/web_polizas/public/css/cliente/perfil.css">
+    <link rel="stylesheet" href="http://localhost/Gestion_de_Polizas/public/css/cliente/perfil.css">
 </head>
 
 <body>

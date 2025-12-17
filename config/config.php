@@ -25,13 +25,13 @@ date_default_timezone_set('America/Panama');
 // Configuración de URLs
 define('BASE_URL', ENVIRONMENT === 'development' 
     ? 'http://localhost/henriquez-seguros/' 
-    : 'https://tudominio.com/');
+    : 'https://localhost/gestion_de_Polizas');
 
 // Definir APP_URL si no está definida
 if (!defined('APP_URL')) {
     define('APP_URL', ENVIRONMENT === 'development' 
-        ? 'http://localhost/web_polizas' 
-        : 'https://tudominio.com');
+        ? 'http://localhost/gestion_de_Polizas' 
+        : 'https://localhost/gestion_de_Polizas');
 }
 
 // Rutas del sistema
@@ -74,16 +74,16 @@ define('RECORDS_PER_PAGE', 20);
 if (ENVIRONMENT === 'development') {
     // Configuración LOCAL (Desarrollo)
     define('DB_HOST', 'localhost');
-    define('DB_NAME', 'web_polizas');  // ← CAMBIA este nombre a tu base de datos
+    define('DB_NAME', 'portalseguros');  // ← CAMBIA este nombre a tu base de datos
     define('DB_USER', 'root');
     define('DB_PASS', '');  // En XAMPP/WAMP por defecto es vacío
     define('DB_CHARSET', 'utf8mb4');
 } else {
     // Configuración PRODUCCIÓN
     define('DB_HOST', 'localhost');
-    define('DB_NAME', 'tu_base_datos_produccion');
-    define('DB_USER', 'tu_usuario_produccion');
-    define('DB_PASS', 'tu_contraseña_produccion');
+    define('DB_NAME', 'portalseguros');
+    define('DB_USER', 'root');
+    define('DB_PASS', '');
     define('DB_CHARSET', 'utf8mb4');
 }
 
