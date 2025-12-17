@@ -25,7 +25,7 @@
                     <i class="fas fa-envelope"></i>
                     <span>Correo</span>
                 </div>
-                <a href="logout.php" class="header-btn">
+                <a href="http://localhost/Gestion_de_Polizas/views/auth/logout.php" class="header-btn">
                     <i class="fas fa-sign-out-alt"></i>
                     <span>Salir</span>
                 </a>
