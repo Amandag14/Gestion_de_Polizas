@@ -234,7 +234,6 @@
             submitBtn.disabled = true;
             submitBtn.textContent = 'Registrando...';
             
-            // Aquí iría tu lógica de registro con PHP
             // Por ahora, simulación:
             setTimeout(() => {
                 document.getElementById('errorAlert').classList.add('hidden');
