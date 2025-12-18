@@ -5,15 +5,58 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Detalle de Póliza - Henríquez y Asociados</title>
     <link rel="stylesheet" href="http://localhost/Gestion_de_Polizas/public/css/cliente/poliza-detalle.css">
-    <link rel="stylesheet" href="styles.css">    
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
 <body>
-    <div class="header">
-        <div class="breadcrumb">
-            <a href="/">Inicio</a> / <a href="/polizas">Mis Pólizas</a> / Detalle
+    <!-- Header -->
+    <header class="header">
+        <div class="header-top">
+            <div class="logo">
+                Henríquez & Asociados
+                <span class="logo-badge">Asesores de seguros</span>
+            </div>
+            
+            <div class="header-buttons">
+                <div class="header-btn">
+                    <i class="fas fa-bell"></i>
+                    <span>Mensajes</span>
+                </div>
+                <div class="header-btn">
+                    <i class="fas fa-envelope"></i>
+                    <span>Correo</span>
+                </div>
+                <a href="http://localhost/Gestion_de_Polizas/views/auth/logout.php" class="header-btn">
+                    <i class="fas fa-sign-out-alt"></i>
+                    <span>Salir</span>
+                </a>
+            </div>
         </div>
-        <h1 class="page-title">Detalle de Póliza</h1>
-    </div>
+        
+        <nav class="nav-menu">
+            <div class="nav-left">
+                <a href="#" class="nav-item active">Pólizas</a>
+                <a href="#" class="nav-item">Consultas</a>
+                <a href="#" class="nav-item">Transacciones</a>
+                <a href="#" class="nav-item">Recargas</a>
+                <a href="#" class="nav-item">Solicitudes</a>
+                <a href="#" class="nav-item">Configuraciones</a>
+            </div>
+            <div class="user-info">
+                <div class="user-name">Hola, JUAN DELGADO</div>
+                <div class="user-time">Último ingreso hace 14 minutos</div>
+            </div>
+        </nav>
+    </header>
+
+    <!-- Container -->
+    <div class="container">
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Welcome Section -->
+            <section class="welcome-section">
+                <h1>Bienvenido, Juan</h1>
+                <p>Aquí puedes consultar todas tus pólizas, pagos y documentos de forma rápida y segura.</p>
+            </section>
 
     <div class="container">
         <a href="dashboardCliente.php" class="back-button">
@@ -257,6 +300,27 @@
             </div>
         </div>
     </div>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="footer-left">
+            <span>Copyright © 2025 Henríquez & Asociados. Todos los derechos reservados.</span>
+        </div>
+        <div class="footer-links">
+            <a href="#" class="footer-link">
+                <i class="fas fa-shield-alt"></i>
+                Seguridad
+            </a>
+            <a href="#" class="footer-link">
+                <i class="fas fa-user-secret"></i>
+                Privacidad
+            </a>
+            <a href="" class="footer-link">
+                <i class="fas fa-sign-out-alt"></i>
+                Salir
+            </a>
+        </div>
+    </footer>
 
     <script>
         // Tabs functionality
