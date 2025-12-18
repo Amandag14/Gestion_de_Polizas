@@ -135,7 +135,7 @@
         
         .logout-btn {
             width: 100%;
-            padding: 0.75rem;
+            padding: 0.5rem;
             background: rgba(255,255,255,0.1);
             border: 1px solid rgba(255,255,255,0.2);
             color: white;
@@ -143,10 +143,6 @@
             cursor: pointer;
             font-size: 0.9rem;
             transition: all 0.3s ease;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 0.5rem;
         }
         
         .logout-btn:hover {
@@ -566,7 +562,7 @@
                 <li class="nav-item">
                     <a href="#" class="nav-link active">
                         <span class="nav-icon">📊</span>
-                        <span>Dashboard</span>
+                        <span>Inico</span>
                     </a>
                 </li>
                 <li class="nav-item">
@@ -583,18 +579,6 @@
                 </li>
                 <li class="nav-item">
                     <a href="#" class="nav-link">
-                        <span class="nav-icon">💰</span>
-                        <span>Pagos</span>
-                    </a>
-                </li>
-                <li class="nav-item">
-                    <a href="#" class="nav-link">
-                        <span class="nav-icon">🏢</span>
-                        <span>Aseguradoras</span>
-                    </a>
-                </li>
-                <li class="nav-item">
-                    <a href="#" class="nav-link">
                         <span class="nav-icon">📄</span>
                         <span>Documentos</span>
                     </a>
@@ -603,12 +587,6 @@
                     <a href="#" class="nav-link">
                         <span class="nav-icon">📈</span>
                         <span>Reportes</span>
-                    </a>
-                </li>
-                <li class="nav-item">
-                    <a href="#" class="nav-link">
-                        <span class="nav-icon">🔔</span>
-                        <span>Alertas</span>
                     </a>
                 </li>
                 <li class="nav-item">
@@ -622,10 +600,7 @@
         
         <!-- Logout Button -->
         <div class="logout-section">
-            <button class="logout-btn">
-                <span>🚪</span>
-                <span>Cerrar Sesión</span>
-            </button>
+            <button class="logout-btn">Cerrar Sesión</button>
         </div>
     </aside>
 
@@ -694,9 +669,9 @@
                 </select>
                 <select class="filter-select">
                     <option>Todos los ejecutivos</option>
-                    <option>María Alvarado</option>
-                    <option>Carlos Pérez</option>
-                    <option>Ana González</option>
+                    <option>Ejecutiva de Ventas</option>
+                    <option>Rosa Peña</option>
+                    <option>Jair Nuñez</option>
                 </select>
             </div>
 
@@ -873,9 +848,9 @@
                 <div class="form-group">
                     <label class="form-label">Ejecutivo Asignado</label>
                     <select class="form-input">
-                        <option>María Alvarado</option>
-                        <option>Carlos Pérez</option>
-                        <option>Ana González</option>
+                        <option>Ejecutiva de Ventas</option>
+                        <option>Rosa Peña</option>
+                        <option>Lourdes Castillo</option>
                     </select>
                 </div>
 

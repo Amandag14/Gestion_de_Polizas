@@ -21,8 +21,8 @@ define('TIEMPO_BLOQUEO_MINUTOS', 30);
 // Si ya hay sesión activa, redirigir según rol
 if (isset($_SESSION['user_id']) && isset($_SESSION['user_role'])) {
     $redirect = ($_SESSION['user_role'] === 'admin') 
-        ? APP_URL . '/views/admin/dashboard.php'
-        : APP_URL . '/views/cliente/dashboard.php';
+        ? APP_URL . '/views/admin/dashboardAdmin.php'
+        : APP_URL . '/views/cliente/dashboardCliente.php';
     header("Location: $redirect");
     exit();
 }

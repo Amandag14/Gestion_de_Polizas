@@ -371,7 +371,7 @@
                 <i class="fas fa-user-secret"></i>
                 Privacidad
             </a>
-            <a href="" class="footer-link">
+            <a href="http://localhost/Gestion_de_Polizas/views/auth/logout.php" class="footer-link">
                 <i class="fas fa-sign-out-alt"></i>
                 Salir
             </a>
