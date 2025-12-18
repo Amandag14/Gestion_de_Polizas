@@ -39,7 +39,7 @@
                 <a href="#" class="nav-item">Transacciones</a>
                 <a href="#" class="nav-item">Recargas</a>
                 <a href="#" class="nav-item">Solicitudes</a>
-                <a href="#" class="nav-item">Configuraciones</a>
+                <a href="http://localhost/Gestion_de_Polizas/views/cliente/perfil.php" class="nav-item">Mi Perfil</a>
             </div>
             <div class="user-info">
                 <div class="user-name">Hola, JUAN DELGADO</div>
