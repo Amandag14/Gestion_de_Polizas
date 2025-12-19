@@ -133,10 +133,11 @@
             opacity: 0.8;
         }
 
-        /* Container */
+        /* Container - ANCHO COMPLETO */
         .container {
-            max-width: 1200px;
-            margin: 0 auto;
+            max-width: 100%;
+            width: 100%;
+            margin: 0;
             padding: 2rem;
             flex: 1;
         }
@@ -175,7 +176,7 @@
             border: 1px solid #a7f3d0;
         }
 
-        /* Page Header */
+        /* Page Header - ANCHO COMPLETO */
         .page-header {
             background: white;
             padding: 2rem;
@@ -185,6 +186,7 @@
             display: flex;
             align-items: center;
             gap: 2rem;
+            width: 100%;
         }
 
         .profile-avatar-large {
@@ -220,13 +222,14 @@
             gap: 0.5rem;
         }
 
-        /* Cards */
+        /* Cards - ANCHO COMPLETO */
         .card {
             background: white;
             border-radius: 12px;
             padding: 2rem;
             box-shadow: 0 2px 8px rgba(0,0,0,0.08);
             margin-bottom: 2rem;
+            width: 100%;
         }
 
         .card.full-width {
@@ -277,6 +280,7 @@
             display: grid;
             grid-template-columns: repeat(3, 1fr);
             gap: 1rem;
+            width: 100%;
         }
 
         .stat-box {
@@ -299,11 +303,12 @@
             color: #64748b;
         }
 
-        /* Content Grid */
+        /* Content Grid - ANCHO COMPLETO */
         .content-grid {
             display: grid;
             grid-template-columns: 2fr 1fr;
             gap: 2rem;
+            width: 100%;
         }
 
         /* Info Display */
@@ -628,7 +633,7 @@
                     <i class="fas fa-envelope"></i>
                     <span>Correo</span>
                 </div>
-                <a href="#" class="header-btn">
+                <a href="http://localhost/Gestion_de_Polizas/views/auth/logout.php" class="header-btn">
                     <i class="fas fa-sign-out-alt"></i>
                     <span>Salir</span>
                 </a>
@@ -637,7 +642,7 @@
         
         <nav class="nav-menu">
             <div class="nav-left">
-                <a href="#" class="nav-item">Pólizas</a>
+                <a href="http://localhost/Gestion_de_Polizas/views/cliente/dashboardCliente.php" class="nav-item">Pólizas</a>
                 <a href="#" class="nav-item">Consultas</a>
                 <a href="#" class="nav-item">Transacciones</a>
                 <a href="#" class="nav-item">Recargas</a>
@@ -901,7 +906,7 @@
                 <i class="fas fa-user-secret"></i>
                 Privacidad
             </a>
-            <a href="#" class="footer-link">
+            <a href="http://localhost/Gestion_de_Polizas/views/auth/logout.php" class="footer-link">
                 <i class="fas fa-sign-out-alt"></i>
                 Salir
             </a>

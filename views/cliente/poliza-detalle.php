@@ -133,10 +133,11 @@
             opacity: 0.8;
         }
 
-        /* Container */
+        /* Container - ANCHO COMPLETO */
         .container {
-            max-width: 1200px;
-            margin: 0 auto;
+            max-width: 100%;
+            width: 100%;
+            margin: 0;
             padding: 2rem;
             flex: 1;
         }
@@ -159,13 +160,14 @@
             background: #f8fafc;
         }
 
-        /* Hero Section */
+        /* Hero Section - ANCHO COMPLETO */
         .policy-hero {
             background: white;
             border-radius: 12px;
             padding: 2rem;
             margin-bottom: 2rem;
             box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            width: 100%;
         }
 
         .hero-header {
@@ -234,11 +236,12 @@
             color: #1e293b;
         }
 
-        /* Content Grid */
+        /* Content Grid - ANCHO COMPLETO */
         .content-grid {
             display: grid;
             grid-template-columns: 2fr 1fr;
             gap: 2rem;
+            width: 100%;
         }
 
         .card {
@@ -247,6 +250,7 @@
             padding: 2rem;
             box-shadow: 0 2px 8px rgba(0,0,0,0.08);
             margin-bottom: 2rem;
+            width: 100%;
         }
 
         .card-header {
@@ -595,6 +599,11 @@
                 padding: 1rem;
             }
 
+            .hero-header {
+                flex-direction: column;
+                gap: 1rem;
+            }
+
             .hero-stats {
                 grid-template-columns: repeat(2, 1fr);
             }
@@ -628,6 +637,15 @@
                 flex-direction: column;
                 gap: 0.75rem;
             }
+
+            .tab-nav {
+                flex-wrap: wrap;
+            }
+
+            .tab-btn {
+                padding: 0.5rem 1rem;
+                font-size: 0.85rem;
+            }
         }
     </style>
 </head>
@@ -649,7 +667,7 @@
                     <i class="fas fa-envelope"></i>
                     <span>Correo</span>
                 </div>
-                <a href="#" class="header-btn">
+                <a href="http://localhost/Gestion_de_Polizas/views/auth/logout.php" class="header-btn">
                     <i class="fas fa-sign-out-alt"></i>
                     <span>Salir</span>
                 </a>
@@ -658,7 +676,7 @@
         
         <nav class="nav-menu">
             <div class="nav-left">
-                <a href="#" class="nav-item active">Pólizas</a>
+                <a href="http://localhost/Gestion_de_Polizas/views/cliente/dashboardCliente.php" class="nav-item active">Pólizas</a>
                 <a href="#" class="nav-item">Consultas</a>
                 <a href="#" class="nav-item">Transacciones</a>
                 <a href="#" class="nav-item">Recargas</a>
@@ -930,7 +948,7 @@
                 <i class="fas fa-user-secret"></i>
                 Privacidad
             </a>
-            <a href="#" class="footer-link">
+            <a href="http://localhost/Gestion_de_Polizas/views/auth/logout.php" class="footer-link">
                 <i class="fas fa-sign-out-alt"></i>
                 Salir
             </a>
