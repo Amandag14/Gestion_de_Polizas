@@ -1,3 +1,220 @@
+<?php
+/**
+ * Archivo: views/auth/registro.php
+ * Descripción: Registro de nuevos clientes
+ */
+
+// Configuración de errores para desarrollo
+error_reporting(E_ALL);
+ini_set('display_errors', 1);
+
+// Iniciar sesión
+session_start();
+
+// Definir APP_URL
+define('APP_URL', 'http://localhost/Gestion_de_Polizas');
+
+$mensaje = "";
+$tipo_mensaje = "";
+$registro_exitoso = false;
+
+/**
+ * Obtener conexión a la base de datos
+ */
+function getDBConnection() {
+    $conn = new mysqli('localhost', 'root', '', 'henriquez_seguros');
+    
+    if ($conn->connect_error) {
+        error_log("Error de conexión: " . $conn->connect_error);
+        throw new Exception("Error de conexión a la base de datos");
+    }
+    
+    $conn->set_charset("utf8mb4");
+    return $conn;
+}
+
+/**
+ * Validar email
+ */
+function validarEmail($email) {
+    $email = trim($email);
+    if (empty($email)) {
+        throw new Exception("El email es obligatorio.");
+    }
+    if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+        throw new Exception("El formato del email no es válido.");
+    }
+    return strtolower($email);
+}
+
+/**
+ * Validar contraseña
+ */
+function validarPassword($password) {
+    if (empty($password)) {
+        throw new Exception("La contraseña es obligatoria.");
+    }
+    if (strlen($password) < 8) {
+        throw new Exception("La contraseña debe tener al menos 8 caracteres.");
+    }
+    return $password;
+}
+
+/**
+ * Validar cédula panameña
+ */
+function validarCedula($cedula) {
+    if (empty($cedula)) {
+        return null;
+    }
+    
+    $patron = '/^[0-9]{1,2}-[0-9]{3,4}-[0-9]{4}$/';
+    if (!preg_match($patron, $cedula)) {
+        throw new Exception("Formato de cédula inválido. Use: X-XXX-XXXX");
+    }
+    
+    return $cedula;
+}
+
+// Procesar formulario de registro
+if ($_SERVER["REQUEST_METHOD"] == "POST") {
+    try {
+        $conn = getDBConnection();
+        
+        // Obtener y validar datos del formulario
+        $tipo_cliente = $_POST['tipo_cliente'] ?? '';
+        $email = validarEmail($_POST['email'] ?? '');
+        $password = validarPassword($_POST['password'] ?? '');
+        $confirm_password = $_POST['confirm_password'] ?? '';
+        
+        // Validar que las contraseñas coincidan
+        if ($password !== $confirm_password) {
+            throw new Exception("Las contraseñas no coinciden.");
+        }
+        
+        // Verificar que el email no exista
+        $stmt = $conn->prepare("SELECT id FROM clientes WHERE email = ?");
+        $stmt->bind_param("s", $email);
+        $stmt->execute();
+        if ($stmt->get_result()->fetch_assoc()) {
+            throw new Exception("Este email ya está registrado.");
+        }
+        $stmt->close();
+        
+        // Hash de la contraseña
+        $password_hash = password_hash($password, PASSWORD_DEFAULT);
+        
+        // Preparar datos según tipo de cliente
+        if ($tipo_cliente === 'Personal') {
+            $nombre = trim($_POST['nombre'] ?? '');
+            $apellido = trim($_POST['apellido'] ?? '');
+            $cedula = validarCedula($_POST['cedula'] ?? '');
+            $razon_social = null;
+            $ruc = null;
+            
+            if (empty($nombre)) {
+                throw new Exception("El nombre es obligatorio.");
+            }
+            if (empty($apellido)) {
+                throw new Exception("El apellido es obligatorio.");
+            }
+            
+        } else if ($tipo_cliente === 'Empresa') {
+            $nombre = null;
+            $apellido = null;
+            $cedula = null;
+            $razon_social = trim($_POST['razon_social'] ?? '');
+            $ruc = trim($_POST['ruc'] ?? '') ?: null;
+            
+            if (empty($razon_social)) {
+                throw new Exception("La razón social es obligatoria.");
+            }
+        } else {
+            throw new Exception("Tipo de cliente inválido.");
+        }
+        
+        // Otros datos
+        $telefono = trim($_POST['telefono'] ?? '') ?: null;
+        $celular = trim($_POST['celular'] ?? '');
+        $provincia = $_POST['provincia'] ?? null;
+        $direccion = trim($_POST['direccion'] ?? '') ?: null;
+        
+        if (empty($celular)) {
+            throw new Exception("El celular es obligatorio.");
+        }
+        
+        // Insertar en la base de datos
+        $aprobado = 1; // 1 = auto-aprobación, 0 = requiere aprobación manual
+        $estado_cuenta = 'Activo';
+        
+        $stmt = $conn->prepare("
+            INSERT INTO clientes (
+                email, 
+                password_hash, 
+                cedula, 
+                ruc,
+                nombre, 
+                apellido, 
+                razon_social,
+                tipo_cliente,
+                telefono, 
+                celular,
+                direccion,
+                provincia,
+                aprobado,
+                estado_cuenta
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ");
+        
+        $stmt->bind_param(
+            "ssssssssssssis",
+            $email,
+            $password_hash,
+            $cedula,
+            $ruc,
+            $nombre,
+            $apellido,
+            $razon_social,
+            $tipo_cliente,
+            $telefono,
+            $celular,
+            $direccion,
+            $provincia,
+            $aprobado,
+            $estado_cuenta
+        );
+        
+        if ($stmt->execute()) {
+            $registro_exitoso = true;
+            $tipo_mensaje = "success";
+            
+            if ($aprobado == 1) {
+                $mensaje = "¡Registro exitoso! Puedes iniciar sesión ahora.";
+            } else {
+                $mensaje = "¡Registro exitoso! Tu cuenta será revisada por un administrador.";
+            }
+            
+            // Log de registro (opcional)
+            $cliente_id = $stmt->insert_id;
+            error_log("Nuevo cliente registrado: ID $cliente_id, Email: $email");
+            
+        } else {
+            throw new Exception("Error al registrar el usuario.");
+        }
+        
+        $stmt->close();
+        $conn->close();
+        
+    } catch (Exception $e) {
+        $mensaje = $e->getMessage();
+        $tipo_mensaje = "error";
+        
+        if (isset($conn) && $conn->ping()) {
+            $conn->close();
+        }
+    }
+}
+?>
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -8,77 +225,89 @@
 </head>
 <body>
     <div class="auth-container">
-        <!-- Logo y Nombre de la Empresa (igual que login) -->
+        <!-- Logo y Nombre de la Empresa -->
         <div class="logo-container">
             <img src="/Gestion_de_Polizas/public/img/HaLogo-1.png" alt="Logo Henriquez & Asociados" class="logo-ha"
                  onerror="this.style.display='none'">
         </div>
 
-        <!-- Header del Registro (igual estructura que login) -->
+        <!-- Header del Registro -->
         <div class="login-header">
             <h1>Crear Nueva Cuenta</h1>
             <p>Registra tus datos para acceder al sistema</p>
         </div>
 
-        <!-- Mensajes de Error/Éxito (igual que login) -->
-        <div class="alert alert-error hidden" id="errorAlert">
-            <span id="errorMessage"></span>
-        </div>
-
-        <div class="alert alert-success hidden" id="successAlert">
-            ✓ Registro exitoso. Espera la aprobación del administrador.
-        </div>
+        <!-- Mensajes de Error/Éxito -->
+        <?php if (!empty($mensaje)): ?>
+            <div class="alert <?php echo $tipo_mensaje === 'error' ? 'alert-error' : 'alert-success'; ?>">
+                <?php echo htmlspecialchars($mensaje); ?>
+            </div>
+            
+            <?php if ($registro_exitoso): ?>
+                <script>
+                    setTimeout(function() {
+                        window.location.href = '<?php echo APP_URL; ?>/views/auth/login.php';
+                    }, 3000);
+                </script>
+            <?php endif; ?>
+        <?php endif; ?>
 
         <!-- Formulario de Registro -->
-        <form id="registroForm" method="POST">
+        <form id="registroForm" method="POST" action="">
             <!-- Tipo de Cliente -->
             <div class="form-group">
-                <label for="tipoCliente">Tipo de Cliente</label>
+                <label for="tipoCliente">Tipo de Cliente *</label>
                 <select id="tipoCliente" name="tipo_cliente" required>
                     <option value="">Selecciona una opción</option>
-                    <option value="Personal">Personal</option>
-                    <option value="Empresa">Empresa</option>
+                    <option value="Personal" <?php echo (isset($_POST['tipo_cliente']) && $_POST['tipo_cliente'] === 'Personal') ? 'selected' : ''; ?>>Personal</option>
+                    <option value="Empresa" <?php echo (isset($_POST['tipo_cliente']) && $_POST['tipo_cliente'] === 'Empresa') ? 'selected' : ''; ?>>Empresa</option>
                 </select>
             </div>
 
             <!-- Campos para Cliente Personal -->
-            <div id="personalFields">
+            <div id="personalFields" <?php echo (isset($_POST['tipo_cliente']) && $_POST['tipo_cliente'] === 'Empresa') ? 'class="hidden"' : ''; ?>>
                 <div class="form-group">
-                    <label for="nombre">Nombre</label>
-                    <input type="text" id="nombre" name="nombre" placeholder="Juan Carlos">
+                    <label for="nombre">Nombre *</label>
+                    <input type="text" id="nombre" name="nombre" placeholder="Juan Carlos" 
+                           value="<?php echo htmlspecialchars($_POST['nombre'] ?? ''); ?>">
                 </div>
                 <div class="form-group">
-                    <label for="apellido">Apellido</label>
-                    <input type="text" id="apellido" name="apellido" placeholder="Delgado">
+                    <label for="apellido">Apellido *</label>
+                    <input type="text" id="apellido" name="apellido" placeholder="Delgado"
+                           value="<?php echo htmlspecialchars($_POST['apellido'] ?? ''); ?>">
                 </div>
                 <div class="form-group">
-                    <label for="cedula">Cédula</label>
-                    <input type="text" id="cedula" name="cedula" placeholder="8-123-4567" pattern="[0-9]{1,2}-[0-9]{3,4}-[0-9]{4}">
+                    <label for="cedula">Cédula *</label>
+                    <input type="text" id="cedula" name="cedula" placeholder="8-123-4567" pattern="[0-9]{1,2}-[0-9]{3,4}-[0-9]{4}"
+                           value="<?php echo htmlspecialchars($_POST['cedula'] ?? ''); ?>">
                     <small class="input-help">Formato: X-XXX-XXXX</small>
                 </div>
             </div>
 
-            <!-- Campos para Empresa (ocultos por defecto) -->
-            <div id="empresaFields" class="hidden">
+            <!-- Campos para Empresa -->
+            <div id="empresaFields" <?php echo (!isset($_POST['tipo_cliente']) || $_POST['tipo_cliente'] !== 'Empresa') ? 'class="hidden"' : ''; ?>>
                 <div class="form-group">
-                    <label for="razonSocial">Razón Social</label>
-                    <input type="text" id="razonSocial" name="razon_social" placeholder="Empresa S.A.">
+                    <label for="razonSocial">Razón Social *</label>
+                    <input type="text" id="razonSocial" name="razon_social" placeholder="Empresa S.A."
+                           value="<?php echo htmlspecialchars($_POST['razon_social'] ?? ''); ?>">
                 </div>
                 <div class="form-group">
                     <label for="ruc">RUC (opcional)</label>
-                    <input type="text" id="ruc" name="ruc" placeholder="12345-67-890123">
+                    <input type="text" id="ruc" name="ruc" placeholder="12345-67-890123"
+                           value="<?php echo htmlspecialchars($_POST['ruc'] ?? ''); ?>">
                 </div>
             </div>
 
             <!-- Email -->
             <div class="form-group">
-                <label for="email">Correo Electrónico</label>
-                <input type="email" id="email" name="email" placeholder="correo@ejemplo.com" required>
+                <label for="email">Correo Electrónico *</label>
+                <input type="email" id="email" name="email" placeholder="correo@ejemplo.com" required
+                       value="<?php echo htmlspecialchars($_POST['email'] ?? ''); ?>">
             </div>
 
             <!-- Contraseña -->
             <div class="form-group">
-                <label for="password">Contraseña</label>
+                <label for="password">Contraseña *</label>
                 <input type="password" id="password" name="password" placeholder="Mínimo 8 caracteres" required>
                 <div class="password-strength">
                     <div class="strength-bar">
@@ -89,19 +318,21 @@
             </div>
 
             <div class="form-group">
-                <label for="confirmPassword">Confirmar Contraseña</label>
+                <label for="confirmPassword">Confirmar Contraseña *</label>
                 <input type="password" id="confirmPassword" name="confirm_password" placeholder="Repite tu contraseña" required>
             </div>
 
             <!-- Teléfonos -->
             <div class="form-group">
                 <label for="telefono">Teléfono (opcional)</label>
-                <input type="tel" id="telefono" name="telefono" placeholder="+507 XXXX-XXXX">
+                <input type="tel" id="telefono" name="telefono" placeholder="+507 XXXX-XXXX"
+                       value="<?php echo htmlspecialchars($_POST['telefono'] ?? ''); ?>">
             </div>
 
             <div class="form-group">
-                <label for="celular">Celular</label>
-                <input type="tel" id="celular" name="celular" placeholder="+507 6XXX-XXXX" required>
+                <label for="celular">Celular *</label>
+                <input type="tel" id="celular" name="celular" placeholder="+507 6XXX-XXXX" required
+                       value="<?php echo htmlspecialchars($_POST['celular'] ?? ''); ?>">
             </div>
 
             <!-- Dirección -->
@@ -109,21 +340,21 @@
                 <label for="provincia">Provincia</label>
                 <select id="provincia" name="provincia">
                     <option value="">Selecciona una provincia</option>
-                    <option value="Panama">Panamá</option>
-                    <option value="Colon">Colón</option>
-                    <option value="Chiriqui">Chiriquí</option>
-                    <option value="Bocas del Toro">Bocas del Toro</option>
-                    <option value="Veraguas">Veraguas</option>
-                    <option value="Cocle">Coclé</option>
-                    <option value="Herrera">Herrera</option>
-                    <option value="Los Santos">Los Santos</option>
-                    <option value="Darien">Darién</option>
+                    <option value="Panama" <?php echo (isset($_POST['provincia']) && $_POST['provincia'] === 'Panama') ? 'selected' : ''; ?>>Panamá</option>
+                    <option value="Colon" <?php echo (isset($_POST['provincia']) && $_POST['provincia'] === 'Colon') ? 'selected' : ''; ?>>Colón</option>
+                    <option value="Chiriqui" <?php echo (isset($_POST['provincia']) && $_POST['provincia'] === 'Chiriqui') ? 'selected' : ''; ?>>Chiriquí</option>
+                    <option value="Bocas del Toro" <?php echo (isset($_POST['provincia']) && $_POST['provincia'] === 'Bocas del Toro') ? 'selected' : ''; ?>>Bocas del Toro</option>
+                    <option value="Veraguas" <?php echo (isset($_POST['provincia']) && $_POST['provincia'] === 'Veraguas') ? 'selected' : ''; ?>>Veraguas</option>
+                    <option value="Cocle" <?php echo (isset($_POST['provincia']) && $_POST['provincia'] === 'Cocle') ? 'selected' : ''; ?>>Coclé</option>
+                    <option value="Herrera" <?php echo (isset($_POST['provincia']) && $_POST['provincia'] === 'Herrera') ? 'selected' : ''; ?>>Herrera</option>
+                    <option value="Los Santos" <?php echo (isset($_POST['provincia']) && $_POST['provincia'] === 'Los Santos') ? 'selected' : ''; ?>>Los Santos</option>
+                    <option value="Darien" <?php echo (isset($_POST['provincia']) && $_POST['provincia'] === 'Darien') ? 'selected' : ''; ?>>Darién</option>
                 </select>
             </div>
 
             <div class="form-group">
                 <label for="direccion">Dirección</label>
-                <textarea id="direccion" name="direccion" placeholder="Calle, edificio, número de casa..."></textarea>
+                <textarea id="direccion" name="direccion" placeholder="Calle, edificio, número de casa..."><?php echo htmlspecialchars($_POST['direccion'] ?? ''); ?></textarea>
             </div>
 
             <!-- Términos y Condiciones -->
@@ -135,16 +366,15 @@
                 </label>
             </div>
 
-            <!-- Botón de Envío (igual que login) -->
+            <!-- Botón de Envío -->
             <button type="submit" class="btn btn-primary" id="submitBtn">
                 Crear Cuenta
             </button>
         </form>
 
-        <!-- Enlaces adicionales (igual que login) -->
+        <!-- Enlaces adicionales -->
         <div class="auth-links">
-            <a href="/Gestion_de_Polizas/views/auth/login.php">¿Ya tienes cuenta? Inicia Sesión</a>
-            <a href="/Gestion_de_Polizas/views/auth/recuperar.php">¿Olvidaste tu contraseña?</a>
+            <a href="<?php echo APP_URL; ?>/views/auth/login.php">¿Ya tienes cuenta? Inicia Sesión</a>
         </div>
     </div>
 
@@ -193,71 +423,25 @@
                 strengthText.textContent = 'Muy débil';
             } else if (strength <= 2) {
                 strengthFill.classList.add('weak');
-                strengthText.textContent = 'Débil - Agrega mayúsculas, números o símbolos';
+                strengthText.textContent = 'Débil';
             } else if (strength === 3) {
                 strengthFill.classList.add('medium');
-                strengthText.textContent = 'Media - Considera agregar caracteres especiales';
+                strengthText.textContent = 'Media';
             } else {
                 strengthFill.classList.add('strong');
-                strengthText.textContent = '¡Excelente! Contraseña fuerte';
+                strengthText.textContent = '¡Fuerte!';
             }
         });
 
-        // Validar que las contraseñas coincidan
+        // Validar contraseñas
         document.getElementById('confirmPassword').addEventListener('blur', function() {
             const password = document.getElementById('password').value;
             const confirmPassword = this.value;
             
             if (confirmPassword && password !== confirmPassword) {
-                mostrarError('Las contraseñas no coinciden');
+                alert('Las contraseñas no coinciden');
             }
         });
-
-        // Submit del formulario
-        registroForm.addEventListener('submit', function(e) {
-            e.preventDefault();
-            
-            const password = document.getElementById('password').value;
-            const confirmPassword = document.getElementById('confirmPassword').value;
-            
-            if (password !== confirmPassword) {
-                mostrarError('Las contraseñas no coinciden');
-                return;
-            }
-            
-            if (!document.getElementById('terminos').checked) {
-                mostrarError('Debes aceptar los términos y condiciones');
-                return;
-            }
-            
-            const submitBtn = document.getElementById('submitBtn');
-            submitBtn.disabled = true;
-            submitBtn.textContent = 'Registrando...';
-            
-            // Por ahora, simulación:
-            setTimeout(() => {
-                document.getElementById('errorAlert').classList.add('hidden');
-                document.getElementById('successAlert').classList.remove('hidden');
-                registroForm.reset();
-                submitBtn.disabled = false;
-                submitBtn.textContent = 'Crear Cuenta';
-                
-                setTimeout(() => {
-                    window.location.href = '/Gestion_de_Polizas/views/auth/login.php';
-                }, 3000);
-            }, 2000);
-        });
-
-        function mostrarError(mensaje) {
-            const errorAlert = document.getElementById('errorAlert');
-            const errorMessage = document.getElementById('errorMessage');
-            errorMessage.textContent = mensaje;
-            errorAlert.classList.remove('hidden');
-            
-            setTimeout(() => {
-                errorAlert.classList.add('hidden');
-            }, 5000);
-        }
     </script>
 </body>
 </html>

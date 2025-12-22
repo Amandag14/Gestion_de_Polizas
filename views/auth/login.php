@@ -32,6 +32,21 @@ $tipo_mensaje = "";
 $tiempo_bloqueo_restante = 0;
 
 /**
+ * Obtener conexión a la base de datos (MySQLi)
+ */
+function getDBConnection() {
+    $conn = new mysqli('localhost', 'root', '', 'henriquez_seguros');
+    
+    if ($conn->connect_error) {
+        error_log("Error de conexión: " . $conn->connect_error);
+        throw new Exception("Error de conexión a la base de datos");
+    }
+    
+    $conn->set_charset("utf8mb4");
+    return $conn;
+}
+
+/**
  * Verificar si una cuenta está bloqueada
  */
 function verificarBloqueo($conn, $email) {
@@ -46,6 +61,7 @@ function verificarBloqueo($conn, $email) {
     $stmt->bind_param("s", $email);
     $stmt->execute();
     $resultado = $stmt->get_result()->fetch_assoc();
+    $stmt->close();
     
     if (!$resultado) {
         return ['bloqueada' => false, 'minutos_restantes' => 0, 'intentos' => 0];
@@ -71,6 +87,7 @@ function verificarBloqueo($conn, $email) {
         ");
         $stmt_reset->bind_param("s", $email);
         $stmt_reset->execute();
+        $stmt_reset->close();
         return ['bloqueada' => false, 'minutos_restantes' => 0, 'intentos' => 0];
     }
     
@@ -90,6 +107,7 @@ function registrarIntentoFallido($conn, $email) {
     $stmt->bind_param("s", $email);
     $stmt->execute();
     $resultado = $stmt->get_result()->fetch_assoc();
+    $stmt->close();
     
     if (!$resultado) {
         return ['bloqueada' => false, 'intentos' => 0];
@@ -110,6 +128,7 @@ function registrarIntentoFallido($conn, $email) {
         ");
         $stmt_update->bind_param("iss", $nuevos_intentos, $fecha_desbloqueo, $email);
         $stmt_update->execute();
+        $stmt_update->close();
         
         return ['bloqueada' => true, 'intentos' => $nuevos_intentos];
     } else {
@@ -122,6 +141,7 @@ function registrarIntentoFallido($conn, $email) {
         ");
         $stmt_update->bind_param("is", $nuevos_intentos, $email);
         $stmt_update->execute();
+        $stmt_update->close();
         
         return ['bloqueada' => false, 'intentos' => $nuevos_intentos];
     }
@@ -140,6 +160,7 @@ function resetearIntentos($conn, $email) {
     ");
     $stmt->bind_param("s", $email);
     $stmt->execute();
+    $stmt->close();
 }
 
 /**
@@ -172,6 +193,7 @@ function validarPassword($password) {
 // Procesar formulario de login
 if ($_SERVER["REQUEST_METHOD"] == "POST") {
     try {
+        // Obtener conexión a la base de datos
         $conn = getDBConnection();
         
         // Validar y limpiar datos
@@ -189,11 +211,11 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         // Buscar usuario en la base de datos
         $stmt = $conn->prepare("
             SELECT 
-                id_usuario,
+                id AS id_usuario,
                 nombre_completo,
                 email,
-                password,
-                rol,
+                password_hash AS password,
+                'admin' AS rol,
                 activo
             FROM usuarios 
             WHERE email = ? AND activo = 1
@@ -201,6 +223,26 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         $stmt->bind_param("s", $email);
         $stmt->execute();
         $usuario = $stmt->get_result()->fetch_assoc();
+        $stmt->close();
+        
+        // Si no se encuentra en usuarios, buscar en clientes
+        if (!$usuario) {
+            $stmt = $conn->prepare("
+                SELECT 
+                    id AS id_usuario,
+                    CONCAT(nombre, ' ', apellido) AS nombre_completo,
+                    email,
+                    password_hash AS password,
+                    'cliente' AS rol,
+                    1 AS activo
+                FROM clientes 
+                WHERE email = ? AND aprobado = 1 AND estado_cuenta = 'Activo'
+            ");
+            $stmt->bind_param("s", $email);
+            $stmt->execute();
+            $usuario = $stmt->get_result()->fetch_assoc();
+            $stmt->close();
+        }
         
         // Verificar si el usuario existe
         if (!$usuario) {
@@ -236,26 +278,38 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         $_SESSION['user_name'] = $usuario['nombre_completo'];
         $_SESSION['user_email'] = $usuario['email'];
         $_SESSION['user_role'] = $usuario['rol'];
+        $_SESSION['last_activity'] = time();
         
-        // Registrar el acceso en logs (opcional)
-        $stmt_log = $conn->prepare("
-            INSERT INTO logs_acceso (id_usuario, accion, ip_address, user_agent, fecha_acceso)
-            VALUES (?, 'login', ?, ?, NOW())
-        ");
-        $ip = $_SERVER['REMOTE_ADDR'] ?? 'unknown';
-        $user_agent = $_SERVER['HTTP_USER_AGENT'] ?? 'unknown';
-        $stmt_log->bind_param("iss", $usuario['id_usuario'], $ip, $user_agent);
-        $stmt_log->execute();
+        // Registrar el acceso en logs (si existe la tabla)
+        $stmt_check = $conn->query("SHOW TABLES LIKE 'logs_actividad'");
+        if ($stmt_check->num_rows > 0) {
+            $stmt_log = $conn->prepare("
+                INSERT INTO logs_actividad 
+                (usuario_id, tipo_usuario, accion, ip_address, user_agent, created_at)
+                VALUES (?, ?, 'login', ?, ?, NOW())
+            ");
+            $tipo_usuario = ($usuario['rol'] === 'admin') ? 'Usuario' : 'Cliente';
+            $ip = $_SERVER['REMOTE_ADDR'] ?? 'unknown';
+            $user_agent = $_SERVER['HTTP_USER_AGENT'] ?? 'unknown';
+            $stmt_log->bind_param("isss", $usuario['id_usuario'], $tipo_usuario, $ip, $user_agent);
+            $stmt_log->execute();
+            $stmt_log->close();
+        }
         
         // Actualizar último acceso
-        $stmt_update = $conn->prepare("UPDATE usuarios SET ultimo_acceso = NOW() WHERE id_usuario = ?");
+        $tabla = ($usuario['rol'] === 'admin') ? 'usuarios' : 'clientes';
+        $stmt_update = $conn->prepare("UPDATE $tabla SET ultimo_acceso = NOW() WHERE id = ?");
         $stmt_update->bind_param("i", $usuario['id_usuario']);
         $stmt_update->execute();
+        $stmt_update->close();
+        
+        // Cerrar conexión
+        $conn->close();
         
         // Redirigir según rol
         $redirect = ($usuario['rol'] === 'admin') 
-            ? APP_URL . '/views/admin/dashboard.php'
-            : APP_URL . '/views/cliente/dashboard.php';
+            ? APP_URL . '/views/admin/dashboardAdmin.php'
+            : APP_URL . '/views/cliente/dashboardCliente.php';
         
         header("Location: $redirect");
         exit();
@@ -263,6 +317,11 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     } catch (Exception $e) {
         $mensaje = $e->getMessage();
         $tipo_mensaje = "error";
+        
+        // Cerrar conexión si está abierta
+        if (isset($conn) && $conn->ping()) {
+            $conn->close();
+        }
     }
 }
 ?>
@@ -346,7 +405,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 
     <?php if ($tiempo_bloqueo_restante > 0): ?>
     <script>
-        let segundosRestantes = <?php echo $tiempo_bloqueo_restante * 60; ?>;
+        let segundosRestantes = <?php echo $tiempo_bloqueo_restantes * 60; ?>;
         
         function actualizarContador() {
             const minutos = Math.floor(segundosRestantes / 60);
