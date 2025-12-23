@@ -11,13 +11,32 @@ if (!defined('APP_URL')) {
     define('APP_URL', 'http://localhost/Gestion_de_Polizas');
 }
 
-// Incluir archivos de configuración
-require_once __DIR__ . '/../../config/config.php';
+// Configuración de Base de Datos (ajusta estos valores)
+define('DB_HOST', 'localhost');
+define('DB_USER', 'root');
+define('DB_PASS', '');
+define('DB_NAME', 'henriquez_seguros'); // CAMBIA ESTO por el nombre de tu base de datos
 
 // Importar PHPMailer
 use PHPMailer\PHPMailer\PHPMailer;
 use PHPMailer\PHPMailer\Exception;
 
+// Cargar PHPMailer si existe
+require_once __DIR__ . '/../../vendor/autoload.php';
+
+/**
+ * Función de conexión a la base de datos
+ */
+function getDBConnection() {
+    $conn = new mysqli(DB_HOST, DB_USER, DB_PASS, DB_NAME);
+    
+    if ($conn->connect_error) {
+        throw new Exception("Error de conexión: " . $conn->connect_error);
+    }
+    
+    $conn->set_charset("utf8mb4");
+    return $conn;
+}
 
 $mensaje = "";
 $tipo_mensaje = "";
@@ -39,10 +58,10 @@ function enviarCodigoEmail($email, $codigo, $nombre) {
     try {
         // Configuración del servidor SMTP
         $mail->isSMTP();
-        $mail->Host       = 'smtp.gmail.com'; // Cambiar según tu proveedor
+        $mail->Host       = 'smtp.gmail.com';
         $mail->SMTPAuth   = true;
-        $mail->Username   = 'tu-email@gmail.com'; // Tu email
-        $mail->Password   = 'tu-contraseña-app'; // Contraseña de aplicación
+        $mail->Username   = 'tu-email@gmail.com'; // ⚠️ CAMBIAR POR TU EMAIL
+        $mail->Password   = 'tu-app-password'; // ⚠️ CAMBIAR POR TU CONTRASEÑA DE APLICACIÓN
         $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
         $mail->Port       = 587;
         
@@ -170,6 +189,14 @@ function marcarCodigoUsado($conn, $codigo_id) {
     return $stmt->execute();
 }
 
+// Manejar reintentar envío de código
+if (isset($_GET['reintentar']) && isset($_SESSION['recuperar_email'])) {
+    unset($_SESSION['recuperar_email']);
+    unset($_SESSION['codigo_verificado']);
+    unset($_SESSION['codigo_id']);
+    $paso = 1;
+}
+
 // Procesar formularios
 if ($_SERVER["REQUEST_METHOD"] == "POST") {
     try {
@@ -183,8 +210,9 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                 throw new Exception("Por favor ingresa un correo electrónico válido.");
             }
             
-            // Verificar si el email existe
-            $stmt = $conn->prepare("SELECT id_usuario, nombre_completo, email FROM usuarios WHERE email = ? AND activo = 1");
+            // Verificar si el email existe en la tabla clientes
+            // Nota: La tabla 'clientes' tiene columnas: id, email, password_hash, cedula, ruc, nombre, apellido
+            $stmt = $conn->prepare("SELECT id, nombre, apellido, email FROM clientes WHERE email = ?");
             $stmt->bind_param("s", $email);
             $stmt->execute();
             $usuario = $stmt->get_result()->fetch_assoc();
@@ -192,6 +220,9 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             if (!$usuario) {
                 throw new Exception("No existe una cuenta asociada a este correo electrónico.");
             }
+            
+            // Combinar nombre y apellido para el email
+            $nombre_completo = trim($usuario['nombre'] . ' ' . $usuario['apellido']);
             
             // Generar y guardar código
             $codigo = generarCodigoVerificacion();
@@ -201,13 +232,13 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             }
             
             // Enviar email
-            if (enviarCodigoEmail($email, $codigo, $usuario['nombre_completo'])) {
+            if (enviarCodigoEmail($email, $codigo, $nombre_completo)) {
                 $_SESSION['recuperar_email'] = $email;
                 $paso = 2;
                 $tipo_mensaje = "success";
                 $mensaje = "Código enviado exitosamente. Revisa tu correo electrónico.";
             } else {
-                throw new Exception("Error al enviar el correo. Verifica tu conexión e intenta nuevamente.");
+                throw new Exception("Error al enviar el correo. Verifica la configuración SMTP e intenta nuevamente.");
             }
         }
         
@@ -227,6 +258,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             $verificacion = verificarCodigo($conn, $email, $codigo);
             
             if (!$verificacion['valido']) {
+                $paso = 2; // Mantener en el paso 2
                 throw new Exception($verificacion['mensaje']);
             }
             
@@ -249,16 +281,18 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             
             // Validar contraseñas
             if (strlen($password) < 8) {
+                $paso = 3; // Mantener en el paso 3
                 throw new Exception("La contraseña debe tener al menos 8 caracteres.");
             }
             
             if ($password !== $confirm_password) {
+                $paso = 3; // Mantener en el paso 3
                 throw new Exception("Las contraseñas no coinciden.");
             }
             
             // Actualizar contraseña
             $password_hash = password_hash($password, PASSWORD_DEFAULT);
-            $stmt = $conn->prepare("UPDATE usuarios SET password = ? WHERE email = ?");
+            $stmt = $conn->prepare("UPDATE usuarios SET password_hash = ? WHERE email = ?");
             $stmt->bind_param("ss", $password_hash, $email);
             
             if ($stmt->execute()) {
