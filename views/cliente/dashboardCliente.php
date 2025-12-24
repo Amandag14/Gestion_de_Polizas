@@ -737,10 +737,8 @@
         <nav class="nav-menu">
             <div class="nav-left">
                 <a href="#" class="nav-item active">Pólizas</a>
-                <a href="#" class="nav-item">Consultas</a>
-                <a href="#" class="nav-item">Transacciones</a>
-                <a href="#" class="nav-item">Recargas</a>
-                <a href="#" class="nav-item">Solicitudes</a>
+                <a href="#" class="nav-item">Documentos</a>
+                <a href="#" class="nav-item">Contacto</a>
                 <a href="http://localhost/Gestion_de_Polizas/views/cliente/perfil.php" class="nav-item">Mi Perfil</a>
             </div>
             <div class="user-info">
@@ -1022,37 +1020,25 @@
                         <div class="shortcut-icon">
                             <i class="fas fa-exchange-alt"></i>
                         </div>
-                        <span class="shortcut-label">Entre cuentas</span>
+                        <span class="shortcut-label">Reportar Siniestro</span>
                     </div>
                     <div class="shortcut-item">
                         <div class="shortcut-icon">
                             <i class="fas fa-star"></i>
                         </div>
-                        <span class="shortcut-label">Favoritos</span>
+                        <span class="shortcut-label">Realizar un Pago</span>
                     </div>
                     <div class="shortcut-item">
                         <div class="shortcut-icon">
                             <i class="fas fa-users"></i>
                         </div>
-                        <span class="shortcut-label">A Terceros</span>
+                        <span class="shortcut-label">Contactar a mi corredor</span>
                     </div>
                     <div class="shortcut-item">
                         <div class="shortcut-icon">
                             <i class="fas fa-tint"></i>
                         </div>
-                        <span class="shortcut-label">Pagos</span>
-                    </div>
-                    <div class="shortcut-item">
-                        <div class="shortcut-icon">
-                            <i class="fas fa-car"></i>
-                        </div>
-                        <span class="shortcut-label">Transporte</span>
-                    </div>
-                    <div class="shortcut-item">
-                        <div class="shortcut-icon">
-                            <i class="fas fa-mobile-alt"></i>
-                        </div>
-                        <span class="shortcut-label">Telefonía</span>
+                        <span class="shortcut-label">Centro de Ayuda / FAQs</span>
                     </div>
                 </div>
             </div>
