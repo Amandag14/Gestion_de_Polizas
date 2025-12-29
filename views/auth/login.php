@@ -509,7 +509,7 @@ if (isset($_GET['mode']) && $_GET['mode'] === 'register') {
         .container {
             position: relative;
             width: 900px;
-            height: 600px;
+            height: 650px;
             background: white;
             border-radius: 20px;
             box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
@@ -586,12 +586,17 @@ if (isset($_GET['mode']) && $_GET['mode'] === 'register') {
             transition: all 0.3s ease;
             text-transform: uppercase;
             letter-spacing: 1px;
+            outline: none;
         }
 
         .overlay-panel button:hover {
             background: white;
             color: #004B93;
             transform: scale(1.05);
+        }
+
+        .overlay-panel button:active {
+            transform: scale(0.98);
         }
 
         /* Contenedor de formularios */
@@ -602,9 +607,9 @@ if (isset($_GET['mode']) && $_GET['mode'] === 'register') {
             width: 50%;
             transition: 0.6s ease-in-out;
             display: flex;
-            align-items: center;
+            align-items: flex-start;
             justify-content: center;
-            padding: 40px 30px;
+            padding: 30px 30px;
             overflow-y: auto;
         }
 
@@ -644,6 +649,7 @@ if (isset($_GET['mode']) && $_GET['mode'] === 'register') {
             color: #333;
             font-size: 28px;
             margin-bottom: 25px;
+            margin-top: 10px;
             text-align: center;
             font-weight: 700;
         }
@@ -718,6 +724,45 @@ if (isset($_GET['mode']) && $_GET['mode'] === 'register') {
 
         .submit-btn:active {
             transform: translateY(0);
+        }
+
+        .social-login {
+            margin-top: 30px;
+            text-align: center;
+        }
+
+        .social-login p {
+            color: #999;
+            font-size: 13px;
+            margin-bottom: 15px;
+        }
+
+        .social-icons {
+            display: flex;
+            justify-content: center;
+            gap: 12px;
+        }
+
+        .social-icons a {
+            width: 42px;
+            height: 42px;
+            border: 2px solid #e8e8e8;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #666;
+            text-decoration: none;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            background: #f7f7f7;
+        }
+
+        .social-icons a:hover {
+            border-color: #004B93;
+            background: #004B93;
+            color: white;
+            transform: translateY(-3px);
         }
 
         .alert {
@@ -851,10 +896,16 @@ if (isset($_GET['mode']) && $_GET['mode'] === 'register') {
                     <button type="submit" class="submit-btn">Ingresar</button>
                 </form>
 
-                <div class="mobile-switch">
-                    <p>¿No tienes cuenta?</p>
-                    <a onclick="showRegister()">Regístrate aquí</a>
+                <div class="social-login">
+                    <p>or login with social platforms</p>
+                    <div class="social-icons">
+                        <a href="#" title="Google">G</a>
+                        <a href="#" title="Facebook">f</a>
+                        <a href="#" title="GitHub">⚡</a>
+                        <a href="#" title="LinkedIn">in</a>
+                    </div>
                 </div>
+
             </div>
         </div>
 
@@ -957,6 +1008,16 @@ if (isset($_GET['mode']) && $_GET['mode'] === 'register') {
                     <button type="submit" class="submit-btn">Registrarme</button>
                 </form>
 
+                <div class="social-login">
+                    <p>or register with social platforms</p>
+                    <div class="social-icons">
+                        <a href="#" title="Google">G</a>
+                        <a href="#" title="Facebook">f</a>
+                        <a href="#" title="GitHub">⚡</a>
+                        <a href="#" title="LinkedIn">in</a>
+                    </div>
+                </div>
+
                 <div class="mobile-switch">
                     <p>¿Ya tienes cuenta?</p>
                     <a onclick="showLogin()">Inicia sesión aquí</a>
@@ -967,14 +1028,14 @@ if (isset($_GET['mode']) && $_GET['mode'] === 'register') {
         <!-- Panel deslizante -->
         <div class="overlay-panel">
             <div class="overlay-content overlay-left">
-                <h2>¡Bienvenido!</h2>
-                <p>¿No tienes cuenta?</p>
-                <button onclick="showRegister()">Regístrate</button>
+                <h2>¡Hola, Bienvenido!</h2>
+                <p>¿No tienes una cuenta?</p>
+                <button type="button" onclick="showRegister()">Registrarse</button>
             </div>
             <div class="overlay-content overlay-right">
                 <h2>¡Bienvenido de nuevo!</h2>
-                <p>¿Ya tienes cuenta?</p>
-                <button onclick="showLogin()">Inicia Sesión</button>
+                <p>¿Ya tienes una cuenta?</p>
+                <button type="button" onclick="showLogin()">Iniciar Sesión</button>
             </div>
         </div>
     </div>
@@ -982,13 +1043,15 @@ if (isset($_GET['mode']) && $_GET['mode'] === 'register') {
     <script>
         const container = document.getElementById('container');
 
-        function showRegister() {
+        function showRegister(event) {
+            if (event) event.preventDefault();
             container.classList.add('register-mode');
             // Actualizar URL sin recargar
             window.history.pushState({}, '', '?mode=register');
         }
 
-        function showLogin() {
+        function showLogin(event) {
+            if (event) event.preventDefault();
             container.classList.remove('register-mode');
             // Actualizar URL sin recargar
             window.history.pushState({}, '', window.location.pathname);
