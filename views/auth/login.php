@@ -497,26 +497,25 @@ if (isset($_GET['mode']) && $_GET['mode'] === 'register') {
 
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: #ffffff;
+            background: #f0f2f5;
             min-height: 100vh;
-            display: flex;
-            align-items: center;
-            justify-content: center;
+            margin: 0;
+            padding: 0;
             overflow: hidden;
-            padding: 20px;
         }
 
         .container {
             position: relative;
-            width: 900px;
-            height: 650px;
+            width: 100%;
+            height: 100vh;
             background: white;
-            border-radius: 20px;
-            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
             overflow: hidden;
         }
 
-        /* Panel deslizante de bienvenida */
+        /* ============================================
+        Panel deslizante de bienvenida
+        ============================================ */
+
         .overlay-panel {
             position: absolute;
             top: 0;
@@ -531,62 +530,76 @@ if (isset($_GET['mode']) && $_GET['mode'] === 'register') {
             padding: 40px;
             color: white;
             z-index: 100;
-            transition: 0.6s ease-in-out;
+            transition: transform 0.6s ease-in-out;
             transform: translateX(0);
+            border-radius: 0 80px 80px 0;
         }
 
+        /* Panel se mueve cuando está en modo registro */
         .container.register-mode .overlay-panel {
             transform: translateX(100%);
+            border-radius: 80px 0 0 80px;
         }
 
+        /* Contenido interno */
         .overlay-content {
+            width: 100%;
             text-align: center;
-            transition: 0.6s ease-in-out 0.2s;
+            transition: opacity 0.6s ease-in-out;
+        }
+
+        /* Ambos textos existen pero solo uno es visible */
+        .overlay-left,
+        .overlay-right {
+            width: 100%;
+            text-align: center;
+            opacity: 0;
+        }
+
+        /* Estado inicial (LOGIN) */
+        .overlay-left {
             opacity: 1;
         }
 
+        /* Estado REGISTRO */
         .container.register-mode .overlay-left {
             opacity: 0;
-            transition: 0.6s ease-in-out;
-        }
-
-        .overlay-right {
-            position: absolute;
-            right: 0;
-            opacity: 0;
-            transition: 0.6s ease-in-out;
         }
 
         .container.register-mode .overlay-right {
             opacity: 1;
-            transition: 0.6s ease-in-out 0.4s;
         }
 
+        /* Tipografía */
         .overlay-panel h2 {
-            font-size: 32px;
-            margin-bottom: 15px;
+            font-size: 42px;
+            margin-bottom: 20px;
             font-weight: 600;
         }
 
         .overlay-panel p {
-            font-size: 16px;
-            margin-bottom: 30px;
+            font-size: 20px;
+            margin-bottom: 35px;
             opacity: 0.95;
         }
 
+        /* Botón */
         .overlay-panel button {
             background: transparent;
             border: 2px solid white;
             color: white;
-            padding: 12px 45px;
+            padding: 14px 50px;
             border-radius: 30px;
-            font-size: 16px;
+            font-size: 18px;
             font-weight: 600;
             cursor: pointer;
             transition: all 0.3s ease;
             text-transform: uppercase;
             letter-spacing: 1px;
             outline: none;
+            pointer-events: auto;
+            position: relative;
+            z-index: 2;
         }
 
         .overlay-panel button:hover {
@@ -607,7 +620,7 @@ if (isset($_GET['mode']) && $_GET['mode'] === 'register') {
             width: 50%;
             transition: 0.6s ease-in-out;
             display: flex;
-            align-items: flex-start;
+            align-items: center;
             justify-content: center;
             padding: 30px 30px;
             overflow-y: auto;
@@ -624,6 +637,7 @@ if (isset($_GET['mode']) && $_GET['mode'] === 'register') {
             z-index: 1;
             opacity: 0;
             pointer-events: none;
+            align-items: flex-start;
         }
 
         .container.register-mode .login-container {
@@ -818,13 +832,6 @@ if (isset($_GET['mode']) && $_GET['mode'] === 'register') {
 
         /* Responsive */
         @media (max-width: 900px) {
-            .container {
-                width: 100%;
-                max-width: 450px;
-                height: auto;
-                min-height: 600px;
-            }
-
             .overlay-panel {
                 display: none;
             }
@@ -845,6 +852,7 @@ if (isset($_GET['mode']) && $_GET['mode'] === 'register') {
                 margin-top: 20px;
                 padding-top: 20px;
                 border-top: 1px solid #e8e8e8;
+                display: block !important;
             }
 
             .mobile-switch p {
@@ -860,10 +868,49 @@ if (isset($_GET['mode']) && $_GET['mode'] === 'register') {
                 cursor: pointer;
             }
         }
+
+        @media (max-width: 768px) {
+            .form-box h3 {
+                font-size: 24px;
+                margin-bottom: 20px;
+            }
+
+            .input-group input,
+            .input-group select {
+                padding: 10px 12px;
+                font-size: 13px;
+            }
+
+            .submit-btn {
+                padding: 12px;
+                font-size: 14px;
+            }
+
+            .form-container {
+                padding: 20px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .form-box h3 {
+                font-size: 22px;
+            }
+
+            .input-row {
+                grid-template-columns: 1fr;
+                gap: 0;
+            }
+
+            .social-icons a {
+                width: 38px;
+                height: 38px;
+                font-size: 14px;
+            }
+        }
     </style>
 </head>
 <body>
-    <div class="container" id="container" <?php echo $mostrar_registro ? 'class="register-mode"' : ''; ?>>
+    <div class="container" id="container">
         
         <!-- ============================================ -->
         <!-- FORMULARIO DE LOGIN -->
@@ -1018,7 +1065,7 @@ if (isset($_GET['mode']) && $_GET['mode'] === 'register') {
                     </div>
                 </div>
 
-                <div class="mobile-switch">
+                <div class="mobile-switch" style="display: none;">
                     <p>¿Ya tienes cuenta?</p>
                     <a onclick="showLogin()">Inicia sesión aquí</a>
                 </div>
@@ -1030,12 +1077,12 @@ if (isset($_GET['mode']) && $_GET['mode'] === 'register') {
             <div class="overlay-content overlay-left">
                 <h2>¡Hola, Bienvenido!</h2>
                 <p>¿No tienes una cuenta?</p>
-                <button type="button" onclick="showRegister()">Registrarse</button>
+                <button onclick="showRegister()">Registrarse</button>
             </div>
             <div class="overlay-content overlay-right">
                 <h2>¡Bienvenido de nuevo!</h2>
                 <p>¿Ya tienes una cuenta?</p>
-                <button type="button" onclick="showLogin()">Iniciar Sesión</button>
+                <button onclick="showLogin()">Iniciar Sesión</button>
             </div>
         </div>
     </div>
@@ -1043,18 +1090,12 @@ if (isset($_GET['mode']) && $_GET['mode'] === 'register') {
     <script>
         const container = document.getElementById('container');
 
-        function showRegister(event) {
-            if (event) event.preventDefault();
+        function showRegister() {
             container.classList.add('register-mode');
-            // Actualizar URL sin recargar
-            window.history.pushState({}, '', '?mode=register');
         }
 
-        function showLogin(event) {
-            if (event) event.preventDefault();
+        function showLogin() {
             container.classList.remove('register-mode');
-            // Actualizar URL sin recargar
-            window.history.pushState({}, '', window.location.pathname);
         }
 
         // Mostrar/ocultar campos según tipo de cliente
@@ -1083,16 +1124,23 @@ if (isset($_GET['mode']) && $_GET['mode'] === 'register') {
             }
         }
 
-        // Inicializar al cargar la página
-        document.addEventListener('DOMContentLoaded', function() {
-            // Si hay un mensaje de éxito en registro, mostrar login después de 3 segundos
-            const alertSuccess = document.querySelector('.alert-success');
-            if (alertSuccess && container.classList.contains('register-mode')) {
-                setTimeout(function() {
-                    showLogin();
-                }, 3000);
-            }
-        });
+        // Detectar si venimos de un enlace específico
+        const urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.get('mode') === 'register') {
+            showRegister();
+        }
+
+        // Si hay mensaje de éxito en registro, volver a login después de 3 segundos
+        <?php if ($tipo_mensaje === 'success' && $mostrar_registro): ?>
+        setTimeout(function() {
+            showLogin();
+        }, 3000);
+        <?php endif; ?>
+
+        // Si venimos del PHP con modo registro, activarlo
+        <?php if ($mostrar_registro): ?>
+        showRegister();
+        <?php endif; ?>
     </script>
 </body>
 </html>
