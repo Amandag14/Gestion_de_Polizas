@@ -513,7 +513,7 @@ if (isset($_GET['mode']) && $_GET['mode'] === 'register') {
         }
 
         /* ============================================
-        Panel deslizante de bienvenida
+        Panel deslizante de bienvenida - MEJORADO
         ============================================ */
 
         .overlay-panel {
@@ -527,7 +527,7 @@ if (isset($_GET['mode']) && $_GET['mode'] === 'register') {
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            padding: 40px;
+            padding: 60px 40px;
             color: white;
             z-index: 100;
             transition: transform 0.6s ease-in-out;
@@ -541,11 +541,16 @@ if (isset($_GET['mode']) && $_GET['mode'] === 'register') {
             border-radius: 80px 0 0 80px;
         }
 
-        /* Contenido interno */
+        /* Contenido interno - MEJOR CENTRADO */
         .overlay-content {
             width: 100%;
+            max-width: 500px;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
             text-align: center;
-            transition: opacity 0.6s ease-in-out;
         }
 
         /* Ambos textos existen pero solo uno es visible */
@@ -554,33 +559,40 @@ if (isset($_GET['mode']) && $_GET['mode'] === 'register') {
             width: 100%;
             text-align: center;
             opacity: 0;
+            transition: opacity 0.6s ease-in-out;
+            pointer-events: none;
         }
 
         /* Estado inicial (LOGIN) */
         .overlay-left {
             opacity: 1;
+            pointer-events: auto;
         }
 
         /* Estado REGISTRO */
         .container.register-mode .overlay-left {
             opacity: 0;
+            pointer-events: none;
         }
 
         .container.register-mode .overlay-right {
             opacity: 1;
+            pointer-events: auto;
         }
 
-        /* Tipografía */
+        /* Tipografía - MEJOR ESPACIADO */
         .overlay-panel h2 {
             font-size: 42px;
-            margin-bottom: 20px;
+            margin-bottom: 25px;
             font-weight: 600;
+            line-height: 1.2;
         }
 
         .overlay-panel p {
             font-size: 20px;
-            margin-bottom: 35px;
+            margin-bottom: 40px;
             opacity: 0.95;
+            line-height: 1.5;
         }
 
         /* Botón */
@@ -654,15 +666,20 @@ if (isset($_GET['mode']) && $_GET['mode'] === 'register') {
             transition: 0.6s ease-in-out 0.4s;
         }
 
+        /* ============================================
+        FORMULARIO - MÁS ESPACIOSO
+        ============================================ */
+
         .form-box {
             width: 100%;
-            max-width: 380px;
+            max-width: 450px;
+            padding: 20px 30px;
         }
 
         .form-box h3 {
             color: #333;
-            font-size: 28px;
-            margin-bottom: 25px;
+            font-size: 32px;
+            margin-bottom: 30px;
             margin-top: 10px;
             text-align: center;
             font-weight: 700;
@@ -670,16 +687,16 @@ if (isset($_GET['mode']) && $_GET['mode'] === 'register') {
 
         .input-group {
             position: relative;
-            margin-bottom: 18px;
+            margin-bottom: 22px;
         }
 
         .input-group input,
         .input-group select {
             width: 100%;
-            padding: 12px 15px;
+            padding: 15px 18px;
             border: 2px solid #e8e8e8;
             border-radius: 10px;
-            font-size: 14px;
+            font-size: 15px;
             transition: all 0.3s ease;
             background: #f7f7f7;
         }
@@ -700,13 +717,14 @@ if (isset($_GET['mode']) && $_GET['mode'] === 'register') {
 
         .forgot-password {
             text-align: right;
-            margin-bottom: 20px;
+            margin-bottom: 25px;
+            margin-top: 5px;
         }
 
         .forgot-password a {
             color: #004B93;
             text-decoration: none;
-            font-size: 13px;
+            font-size: 14px;
             font-weight: 500;
             transition: all 0.3s ease;
         }
@@ -717,12 +735,12 @@ if (isset($_GET['mode']) && $_GET['mode'] === 'register') {
 
         .submit-btn {
             width: 100%;
-            padding: 13px;
+            padding: 16px;
             background: #004B93;
             border: none;
             border-radius: 10px;
             color: white;
-            font-size: 15px;
+            font-size: 16px;
             font-weight: 600;
             cursor: pointer;
             transition: all 0.3s ease;
@@ -741,25 +759,25 @@ if (isset($_GET['mode']) && $_GET['mode'] === 'register') {
         }
 
         .social-login {
-            margin-top: 30px;
+            margin-top: 35px;
             text-align: center;
         }
 
         .social-login p {
             color: #999;
-            font-size: 13px;
-            margin-bottom: 15px;
+            font-size: 14px;
+            margin-bottom: 18px;
         }
 
         .social-icons {
             display: flex;
             justify-content: center;
-            gap: 12px;
+            gap: 15px;
         }
 
         .social-icons a {
-            width: 42px;
-            height: 42px;
+            width: 45px;
+            height: 45px;
             border: 2px solid #e8e8e8;
             border-radius: 10px;
             display: flex;
@@ -768,6 +786,7 @@ if (isset($_GET['mode']) && $_GET['mode'] === 'register') {
             color: #666;
             text-decoration: none;
             font-weight: 600;
+            font-size: 16px;
             transition: all 0.3s ease;
             background: #f7f7f7;
         }
@@ -867,33 +886,58 @@ if (isset($_GET['mode']) && $_GET['mode'] === 'register') {
                 font-weight: 600;
                 cursor: pointer;
             }
-        }
 
-        @media (max-width: 768px) {
+            .form-box {
+                max-width: 420px;
+                padding: 20px;
+            }
+
             .form-box h3 {
-                font-size: 24px;
-                margin-bottom: 20px;
+                font-size: 28px;
             }
 
             .input-group input,
             .input-group select {
-                padding: 10px 12px;
-                font-size: 13px;
-            }
-
-            .submit-btn {
-                padding: 12px;
+                padding: 13px 16px;
                 font-size: 14px;
             }
 
-            .form-container {
-                padding: 20px;
+            .submit-btn {
+                padding: 14px;
+                font-size: 15px;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .form-box {
+                max-width: 380px;
+            }
+
+            .form-box h3 {
+                font-size: 26px;
+                margin-bottom: 25px;
+            }
+
+            .input-group input,
+            .input-group select {
+                padding: 12px 14px;
+                font-size: 14px;
+            }
+
+            .submit-btn {
+                padding: 13px;
+                font-size: 14px;
             }
         }
 
         @media (max-width: 480px) {
+            .form-box {
+                max-width: 100%;
+                padding: 15px;
+            }
+
             .form-box h3 {
-                font-size: 22px;
+                font-size: 24px;
             }
 
             .input-row {
@@ -905,6 +949,20 @@ if (isset($_GET['mode']) && $_GET['mode'] === 'register') {
                 width: 38px;
                 height: 38px;
                 font-size: 14px;
+            }
+
+            .input-group input,
+            .input-group select {
+                padding: 11px 13px;
+                font-size: 13px;
+            }
+
+            .overlay-panel h2 {
+                font-size: 36px;
+            }
+
+            .overlay-panel p {
+                font-size: 18px;
             }
         }
     </style>
