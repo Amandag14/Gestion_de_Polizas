@@ -310,7 +310,7 @@
             color: #64748b;
             font-size: 0.95rem;
         }
-
+        
         /* Stats Cards - SIEMPRE 4 COLUMNAS FIJAS */
         .stats-grid {
             display: grid;
@@ -321,44 +321,50 @@
 
         .stat-card {
             background: white;
-            padding: 1.5rem;
-            border-radius: 12px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
-            border-left: 4px solid #3b82f6;
+            padding: 1.75rem 1.5rem;
+            border-radius: 8px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+            border-top: 3px solid #3b82f6;
+            border-left: none;
             min-width: 0;
+            position: relative;
         }
 
         .stat-card.warning {
-            border-left-color: #f59e0b;
+            border-top-color: #f59e0b;
         }
 
         .stat-card.success {
-            border-left-color: #10b981;
+            border-top-color: #10b981;
         }
 
         .stat-card.danger {
-            border-left-color: #ef4444;
+            border-top-color: #ef4444;
         }
 
         .stat-label {
-            font-size: 0.75rem;
-            color: #64748b;
+            font-size: 0.7rem;
+            color: #94a3b8;
             text-transform: uppercase;
-            letter-spacing: 0.05em;
-            margin-bottom: 0.5rem;
-            line-height: 1.3;
+            letter-spacing: 0.08em;
+            margin-bottom: 0.75rem;
+            line-height: 1.4;
+            font-weight: 500;
         }
 
         .stat-value {
-            font-size: 2rem;
+            font-size: 2.25rem;
             font-weight: 700;
             color: #1e293b;
+            line-height: 1;
+            margin-bottom: 0.4rem;
         }
 
         .stat-subtitle {
-            font-size: 0.85rem;
+            font-size: 0.8rem;
             color: #94a3b8;
-            margin-top: 0.25rem;
+            margin-top: 0.4rem;
+            font-weight: 400;
         }
 
         /* --- ESTILO TIPO BANCO GENERAL CON TOGGLE --- */

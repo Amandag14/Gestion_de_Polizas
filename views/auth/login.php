@@ -1,487 +1,3 @@
-<?php
-// Configuración de errores para desarrollo (eliminar en producción)
-error_reporting(E_ALL);
-ini_set('display_errors', 1);
-
-// Iniciar sesión
-session_start();
-
-// Definir APP_URL si no está definida
-if (!defined('APP_URL')) {
-    define('APP_URL', 'http://localhost/Gestion_de_Polizas');
-}
-
-// Incluir archivos de configuración
-require_once __DIR__ . '/../../config/config.php';
-
-// Configuración de seguridad
-define('MAX_INTENTOS_FALLIDOS', 5);
-define('TIEMPO_BLOQUEO_MINUTOS', 30);
-
-// Si ya hay sesión activa, redirigir según rol
-if (isset($_SESSION['user_id']) && isset($_SESSION['user_role'])) {
-    $redirect = ($_SESSION['user_role'] === 'admin') 
-        ? APP_URL . '/views/admin/dashboardAdmin.php'
-        : APP_URL . '/views/cliente/dashboardCliente.php';
-    header("Location: $redirect");
-    exit();
-}
-
-$mensaje = "";
-$tipo_mensaje = "";
-$tiempo_bloqueo_restante = 0;
-$mostrar_registro = false;
-
-/**
- * Obtener conexión a la base de datos (MySQLi)
- */
-function getDBConnection() {
-    $conn = new mysqli('localhost', 'root', '', 'henriquez_seguros');
-    
-    if ($conn->connect_error) {
-        error_log("Error de conexión: " . $conn->connect_error);
-        throw new Exception("Error de conexión a la base de datos");
-    }
-    
-    $conn->set_charset("utf8mb4");
-    return $conn;
-}
-
-/**
- * Verificar si una cuenta está bloqueada
- */
-function verificarBloqueo($conn, $email) {
-    $stmt = $conn->prepare("
-        SELECT 
-            intentos_fallidos,
-            cuenta_bloqueada_hasta,
-            TIMESTAMPDIFF(MINUTE, NOW(), cuenta_bloqueada_hasta) as minutos_restantes
-        FROM usuarios 
-        WHERE email = ? AND activo = 1
-    ");
-    $stmt->bind_param("s", $email);
-    $stmt->execute();
-    $resultado = $stmt->get_result()->fetch_assoc();
-    $stmt->close();
-    
-    if (!$resultado) {
-        return ['bloqueada' => false, 'minutos_restantes' => 0, 'intentos' => 0];
-    }
-    
-    if ($resultado['cuenta_bloqueada_hasta'] && strtotime($resultado['cuenta_bloqueada_hasta']) > time()) {
-        return [
-            'bloqueada' => true, 
-            'minutos_restantes' => $resultado['minutos_restantes'],
-            'intentos' => $resultado['intentos_fallidos']
-        ];
-    } 
-    
-    if ($resultado['cuenta_bloqueada_hasta'] && strtotime($resultado['cuenta_bloqueada_hasta']) <= time()) {
-        $stmt_reset = $conn->prepare("
-            UPDATE usuarios 
-            SET intentos_fallidos = 0,
-                cuenta_bloqueada_hasta = NULL,
-                fecha_ultimo_intento_fallido = NULL
-            WHERE email = ?
-        ");
-        $stmt_reset->bind_param("s", $email);
-        $stmt_reset->execute();
-        $stmt_reset->close();
-        return ['bloqueada' => false, 'minutos_restantes' => 0, 'intentos' => 0];
-    }
-    
-    return [
-        'bloqueada' => false, 
-        'minutos_restantes' => 0, 
-        'intentos' => $resultado['intentos_fallidos']
-    ];
-}
-
-/**
- * Registrar intento fallido
- */
-function registrarIntentoFallido($conn, $email) {
-    $stmt = $conn->prepare("SELECT intentos_fallidos FROM usuarios WHERE email = ?");
-    $stmt->bind_param("s", $email);
-    $stmt->execute();
-    $resultado = $stmt->get_result()->fetch_assoc();
-    $stmt->close();
-    
-    if (!$resultado) {
-        return ['bloqueada' => false, 'intentos' => 0];
-    }
-    
-    $nuevos_intentos = $resultado['intentos_fallidos'] + 1;
-    
-    if ($nuevos_intentos >= MAX_INTENTOS_FALLIDOS) {
-        $fecha_desbloqueo = date('Y-m-d H:i:s', strtotime('+' . TIEMPO_BLOQUEO_MINUTOS . ' minutes'));
-        
-        $stmt_update = $conn->prepare("
-            UPDATE usuarios 
-            SET intentos_fallidos = ?,
-                fecha_ultimo_intento_fallido = NOW(),
-                cuenta_bloqueada_hasta = ?
-            WHERE email = ?
-        ");
-        $stmt_update->bind_param("iss", $nuevos_intentos, $fecha_desbloqueo, $email);
-        $stmt_update->execute();
-        $stmt_update->close();
-        
-        return ['bloqueada' => true, 'intentos' => $nuevos_intentos];
-    } else {
-        $stmt_update = $conn->prepare("
-            UPDATE usuarios 
-            SET intentos_fallidos = ?,
-                fecha_ultimo_intento_fallido = NOW()
-            WHERE email = ?
-        ");
-        $stmt_update->bind_param("is", $nuevos_intentos, $email);
-        $stmt_update->execute();
-        $stmt_update->close();
-        
-        return ['bloqueada' => false, 'intentos' => $nuevos_intentos];
-    }
-}
-
-/**
- * Resetear intentos fallidos (después de login exitoso)
- */
-function resetearIntentos($conn, $email) {
-    $stmt = $conn->prepare("
-        UPDATE usuarios 
-        SET intentos_fallidos = 0,
-            cuenta_bloqueada_hasta = NULL,
-            fecha_ultimo_intento_fallido = NULL
-        WHERE email = ?
-    ");
-    $stmt->bind_param("s", $email);
-    $stmt->execute();
-    $stmt->close();
-}
-
-/**
- * Validar email
- */
-function validarEmail($email) {
-    $email = trim($email);
-    if (empty($email)) {
-        throw new Exception("El email es obligatorio.");
-    }
-    if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
-        throw new Exception("El formato del email no es válido.");
-    }
-    return strtolower($email);
-}
-
-/**
- * Validar contraseña
- */
-function validarPassword($password) {
-    if (empty($password)) {
-        throw new Exception("La contraseña es obligatoria.");
-    }
-    if (strlen($password) < 6) {
-        throw new Exception("La contraseña debe tener al menos 6 caracteres.");
-    }
-    return $password;
-}
-
-/**
- * Validar cédula panameña
- */
-function validarCedula($cedula) {
-    if (empty($cedula)) {
-        return null;
-    }
-    
-    $patron = '/^[0-9]{1,2}-[0-9]{3,4}-[0-9]{4}$/';
-    if (!preg_match($patron, $cedula)) {
-        throw new Exception("Formato de cédula inválido. Use: X-XXX-XXXX");
-    }
-    
-    return $cedula;
-}
-
-// ============================================
-// PROCESAR FORMULARIOS
-// ============================================
-
-if ($_SERVER["REQUEST_METHOD"] == "POST") {
-    
-    // Detectar qué formulario se envió
-    $form_type = $_POST['form_type'] ?? '';
-    
-    // ========== PROCESAR LOGIN ==========
-    if ($form_type === 'login') {
-        try {
-            $conn = getDBConnection();
-            
-            $email = validarEmail($_POST["email"] ?? '');
-            $password = validarPassword($_POST["password"] ?? '');
-            
-            // Verificar bloqueo de cuenta
-            $estado_bloqueo = verificarBloqueo($conn, $email);
-            
-            if ($estado_bloqueo['bloqueada']) {
-                $tiempo_bloqueo_restante = $estado_bloqueo['minutos_restantes'];
-                throw new Exception("Cuenta bloqueada temporalmente por seguridad. Intente nuevamente en " . $tiempo_bloqueo_restante . " minutos.");
-            }
-            
-            // Buscar usuario en la base de datos
-            $stmt = $conn->prepare("
-                SELECT 
-                    id AS id_usuario,
-                    nombre_completo,
-                    email,
-                    password_hash AS password,
-                    'admin' AS rol,
-                    activo
-                FROM usuarios 
-                WHERE email = ? AND activo = 1
-            ");
-            $stmt->bind_param("s", $email);
-            $stmt->execute();
-            $usuario = $stmt->get_result()->fetch_assoc();
-            $stmt->close();
-            
-            // Si no se encuentra en usuarios, buscar en clientes
-            if (!$usuario) {
-                $stmt = $conn->prepare("
-                    SELECT 
-                        id AS id_usuario,
-                        CONCAT(nombre, ' ', apellido) AS nombre_completo,
-                        email,
-                        password_hash AS password,
-                        'cliente' AS rol,
-                        1 AS activo
-                    FROM clientes 
-                    WHERE email = ? AND aprobado = 1 AND estado_cuenta = 'Activo'
-                ");
-                $stmt->bind_param("s", $email);
-                $stmt->execute();
-                $usuario = $stmt->get_result()->fetch_assoc();
-                $stmt->close();
-            }
-            
-            // Verificar si el usuario existe
-            if (!$usuario) {
-                $resultado_intento = registrarIntentoFallido($conn, $email);
-                $intentos_restantes = MAX_INTENTOS_FALLIDOS - $resultado_intento['intentos'];
-                
-                if ($resultado_intento['bloqueada']) {
-                    throw new Exception("Cuenta bloqueada temporalmente por seguridad. Intente nuevamente en " . TIEMPO_BLOQUEO_MINUTOS . " minutos.");
-                } else {
-                    throw new Exception("Credenciales inválidas. Le quedan " . $intentos_restantes . " intentos antes del bloqueo temporal.");
-                }
-            }
-            
-            // Verificar contraseña
-            $password_valida = password_verify($password, $usuario['password']);
-            
-            if (!$password_valida) {
-                $resultado_intento = registrarIntentoFallido($conn, $email);
-                $intentos_restantes = MAX_INTENTOS_FALLIDOS - $resultado_intento['intentos'];
-                
-                if ($resultado_intento['bloqueada']) {
-                    throw new Exception("Cuenta bloqueada temporalmente por seguridad. Intente nuevamente en " . TIEMPO_BLOQUEO_MINUTOS . " minutos.");
-                } else {
-                    throw new Exception("Contraseña incorrecta. Le quedan " . $intentos_restantes . " intentos antes del bloqueo temporal.");
-                }
-            }
-            
-            // Autenticación exitosa
-            resetearIntentos($conn, $email);
-            
-            // Crear sesión
-            $_SESSION['user_id'] = $usuario['id_usuario'];
-            $_SESSION['user_name'] = $usuario['nombre_completo'];
-            $_SESSION['user_email'] = $usuario['email'];
-            $_SESSION['user_role'] = $usuario['rol'];
-            $_SESSION['last_activity'] = time();
-            
-            // Registrar el acceso en logs (si existe la tabla)
-            $stmt_check = $conn->query("SHOW TABLES LIKE 'logs_actividad'");
-            if ($stmt_check->num_rows > 0) {
-                $stmt_log = $conn->prepare("
-                    INSERT INTO logs_actividad 
-                    (usuario_id, tipo_usuario, accion, ip_address, user_agent, created_at)
-                    VALUES (?, ?, 'login', ?, ?, NOW())
-                ");
-                $tipo_usuario = ($usuario['rol'] === 'admin') ? 'Usuario' : 'Cliente';
-                $ip = $_SERVER['REMOTE_ADDR'] ?? 'unknown';
-                $user_agent = $_SERVER['HTTP_USER_AGENT'] ?? 'unknown';
-                $stmt_log->bind_param("isss", $usuario['id_usuario'], $tipo_usuario, $ip, $user_agent);
-                $stmt_log->execute();
-                $stmt_log->close();
-            }
-            
-            // Actualizar último acceso
-            $tabla = ($usuario['rol'] === 'admin') ? 'usuarios' : 'clientes';
-            $stmt_update = $conn->prepare("UPDATE $tabla SET ultimo_acceso = NOW() WHERE id = ?");
-            $stmt_update->bind_param("i", $usuario['id_usuario']);
-            $stmt_update->execute();
-            $stmt_update->close();
-            
-            $conn->close();
-            
-            // Redirigir según rol
-            $redirect = ($usuario['rol'] === 'admin') 
-                ? APP_URL . '/views/admin/dashboardAdmin.php'
-                : APP_URL . '/views/cliente/dashboardCliente.php';
-            
-            header("Location: $redirect");
-            exit();
-            
-        } catch (Exception $e) {
-            $mensaje = $e->getMessage();
-            $tipo_mensaje = "error";
-            
-            if (isset($conn) && $conn->ping()) {
-                $conn->close();
-            }
-        }
-    }
-    
-    // ========== PROCESAR REGISTRO ==========
-    else if ($form_type === 'register') {
-        try {
-            $conn = getDBConnection();
-            
-            // Obtener y validar datos del formulario
-            $tipo_cliente = $_POST['tipo_cliente'] ?? '';
-            $email = validarEmail($_POST['reg_email'] ?? '');
-            $password = validarPassword($_POST['reg_password'] ?? '');
-            $confirm_password = $_POST['confirm_password'] ?? '';
-            
-            // Validar que las contraseñas coincidan
-            if ($password !== $confirm_password) {
-                throw new Exception("Las contraseñas no coinciden.");
-            }
-            
-            // Verificar que el email no exista
-            $stmt = $conn->prepare("SELECT id FROM clientes WHERE email = ?");
-            $stmt->bind_param("s", $email);
-            $stmt->execute();
-            if ($stmt->get_result()->fetch_assoc()) {
-                throw new Exception("Este email ya está registrado.");
-            }
-            $stmt->close();
-            
-            // Hash de la contraseña
-            $password_hash = password_hash($password, PASSWORD_DEFAULT);
-            
-            // Preparar datos según tipo de cliente
-            if ($tipo_cliente === 'Personal') {
-                $nombre = trim($_POST['nombre'] ?? '');
-                $apellido = trim($_POST['apellido'] ?? '');
-                $cedula = validarCedula($_POST['cedula'] ?? '');
-                $razon_social = null;
-                $ruc = null;
-                
-                if (empty($nombre)) {
-                    throw new Exception("El nombre es obligatorio.");
-                }
-                if (empty($apellido)) {
-                    throw new Exception("El apellido es obligatorio.");
-                }
-                
-            } else if ($tipo_cliente === 'Empresa') {
-                $nombre = null;
-                $apellido = null;
-                $cedula = null;
-                $razon_social = trim($_POST['razon_social'] ?? '');
-                $ruc = trim($_POST['ruc'] ?? '') ?: null;
-                
-                if (empty($razon_social)) {
-                    throw new Exception("La razón social es obligatoria.");
-                }
-            } else {
-                throw new Exception("Tipo de cliente inválido.");
-            }
-            
-            // Otros datos
-            $telefono = trim($_POST['telefono'] ?? '') ?: null;
-            $celular = trim($_POST['celular'] ?? '');
-            $provincia = $_POST['provincia'] ?? null;
-            $direccion = trim($_POST['direccion'] ?? '') ?: null;
-            
-            if (empty($celular)) {
-                throw new Exception("El celular es obligatorio.");
-            }
-            
-            // Insertar en la base de datos
-            $aprobado = 1; // 1 = auto-aprobación
-            $estado_cuenta = 'Activo';
-            
-            $stmt = $conn->prepare("
-                INSERT INTO clientes (
-                    email, 
-                    password_hash, 
-                    cedula, 
-                    ruc,
-                    nombre, 
-                    apellido, 
-                    razon_social,
-                    tipo_cliente,
-                    telefono, 
-                    celular,
-                    direccion,
-                    provincia,
-                    aprobado,
-                    estado_cuenta
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            ");
-            
-            $stmt->bind_param(
-                "ssssssssssssis",
-                $email,
-                $password_hash,
-                $cedula,
-                $ruc,
-                $nombre,
-                $apellido,
-                $razon_social,
-                $tipo_cliente,
-                $telefono,
-                $celular,
-                $direccion,
-                $provincia,
-                $aprobado,
-                $estado_cuenta
-            );
-            
-            if ($stmt->execute()) {
-                $mensaje = "¡Registro exitoso! Puedes iniciar sesión ahora.";
-                $tipo_mensaje = "success";
-                $mostrar_registro = false; // Volver a mostrar login
-                
-                $cliente_id = $stmt->insert_id;
-                error_log("Nuevo cliente registrado: ID $cliente_id, Email: $email");
-                
-            } else {
-                throw new Exception("Error al registrar el usuario.");
-            }
-            
-            $stmt->close();
-            $conn->close();
-            
-        } catch (Exception $e) {
-            $mensaje = $e->getMessage();
-            $tipo_mensaje = "error";
-            $mostrar_registro = true; // Mantener en vista de registro
-            
-            if (isset($conn) && $conn->ping()) {
-                $conn->close();
-            }
-        }
-    }
-}
-
-// Detectar si venimos de un enlace de registro
-if (isset($_GET['mode']) && $_GET['mode'] === 'register') {
-    $mostrar_registro = true;
-}
-?>
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -513,7 +29,30 @@ if (isset($_GET['mode']) && $_GET['mode'] === 'register') {
         }
 
         /* ============================================
-        Panel deslizante de bienvenida - MEJORADO
+        OVERLAY DE TRANSICIÓN COMPLETA - PROFESIONAL
+        ============================================ */
+        
+        .full-screen-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: #004B93;
+            z-index: 999;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.4s ease, visibility 0.4s ease;
+            pointer-events: none;
+        }
+
+        .full-screen-overlay.active {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        /* ============================================
+        Panel deslizante - ANIMACIÓN PROFESIONAL
         ============================================ */
 
         .overlay-panel {
@@ -523,64 +62,117 @@ if (isset($_GET['mode']) && $_GET['mode'] === 'register') {
             width: 50%;
             height: 100%;
             background: #004B93;
+            color: white;
+            z-index: 100;
+            transform: translateX(0);
+            border-radius: 0 80px 80px 0;
             display: flex;
-            flex-direction: column;
             align-items: center;
             justify-content: center;
             padding: 60px 40px;
-            color: white;
-            z-index: 100;
-            transition: transform 0.6s ease-in-out;
-            transform: translateX(0);
-            border-radius: 0 80px 80px 0;
+            /* Transición suave y profesional */
+            transition: all 0.8s cubic-bezier(0.68, -0.55, 0.265, 1.55);
         }
 
-        /* Panel se mueve cuando está en modo registro */
+        /* Estado final - Modo registro */
         .container.register-mode .overlay-panel {
             transform: translateX(100%);
             border-radius: 80px 0 0 80px;
         }
 
-        /* Contenido interno - MEJOR CENTRADO */
+        /* ANIMACIÓN: De LOGIN a REGISTRO */
+        @keyframes slideToRegister {
+            0% {
+                transform: translateX(0);
+                width: 50%;
+                border-radius: 0 80px 80px 0;
+            }
+            50% {
+                transform: translateX(0);
+                width: 100%;
+                border-radius: 0;
+            }
+            100% {
+                transform: translateX(100%);
+                width: 50%;
+                border-radius: 80px 0 0 80px;
+            }
+        }
+
+        /* ANIMACIÓN: De REGISTRO a LOGIN */
+        @keyframes slideToLogin {
+            0% {
+                transform: translateX(100%);
+                width: 50%;
+                border-radius: 80px 0 0 80px;
+            }
+            50% {
+                transform: translateX(0);
+                width: 100%;
+                border-radius: 0;
+            }
+            100% {
+                transform: translateX(0);
+                width: 50%;
+                border-radius: 0 80px 80px 0;
+            }
+        }
+
+        /* Aplicar animaciones */
+        .container.animating-to-register .overlay-panel {
+            animation: slideToRegister 1s ease-in-out forwards;
+        }
+
+        .container.animating-to-login .overlay-panel {
+            animation: slideToLogin 1s ease-in-out forwards;
+        }
+
+        /* Contenedor wrapper */
         .overlay-content {
+            position: relative;
             width: 100%;
             max-width: 500px;
-            height: 100%;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            text-align: center;
+            min-height: 300px;
         }
 
-        /* Ambos textos existen pero solo uno es visible */
+        /* Ambos overlays superpuestos */
         .overlay-left,
         .overlay-right {
+            position: absolute;
+            top: 0;
+            left: 0;
             width: 100%;
             text-align: center;
-            opacity: 0;
-            transition: opacity 0.6s ease-in-out;
-            pointer-events: none;
+            transition: all 0.6s ease-in-out;
         }
 
-        /* Estado inicial (LOGIN) */
+        /* Estado inicial (LOGIN visible) */
         .overlay-left {
             opacity: 1;
-            pointer-events: auto;
+            visibility: visible;
+            pointer-events: all;
+        }
+
+        .overlay-right {
+            opacity: 0;
+            visibility: hidden;
+            pointer-events: none;
         }
 
         /* Estado REGISTRO */
         .container.register-mode .overlay-left {
             opacity: 0;
+            visibility: hidden;
             pointer-events: none;
         }
 
         .container.register-mode .overlay-right {
             opacity: 1;
-            pointer-events: auto;
+            visibility: visible;
+            pointer-events: all;
         }
 
-        /* Tipografía - MEJOR ESPACIADO */
+        /* Tipografía */
         .overlay-panel h2 {
             font-size: 42px;
             margin-bottom: 25px;
@@ -595,7 +187,7 @@ if (isset($_GET['mode']) && $_GET['mode'] === 'register') {
             line-height: 1.5;
         }
 
-        /* Botón */
+        /* Botón mejorado */
         .overlay-panel button {
             background: transparent;
             border: 2px solid white;
@@ -609,9 +201,27 @@ if (isset($_GET['mode']) && $_GET['mode'] === 'register') {
             text-transform: uppercase;
             letter-spacing: 1px;
             outline: none;
-            pointer-events: auto;
             position: relative;
-            z-index: 2;
+            overflow: hidden;
+        }
+
+        /* Efecto ripple en botón */
+        .overlay-panel button::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 0;
+            height: 0;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.3);
+            transform: translate(-50%, -50%);
+            transition: width 0.6s, height 0.6s;
+        }
+
+        .overlay-panel button:hover::before {
+            width: 300px;
+            height: 300px;
         }
 
         .overlay-panel button:hover {
@@ -624,13 +234,16 @@ if (isset($_GET['mode']) && $_GET['mode'] === 'register') {
             transform: scale(0.98);
         }
 
-        /* Contenedor de formularios */
+        /* ============================================
+        CONTENEDORES DE FORMULARIOS - MEJORADOS
+        ============================================ */
+
         .form-container {
             position: absolute;
             top: 0;
             height: 100%;
             width: 50%;
-            transition: 0.6s ease-in-out;
+            transition: all 0.8s cubic-bezier(0.68, -0.55, 0.265, 1.55);
             display: flex;
             align-items: center;
             justify-content: center;
@@ -652,24 +265,25 @@ if (isset($_GET['mode']) && $_GET['mode'] === 'register') {
             align-items: flex-start;
         }
 
+        /* Durante transición - ocultar formularios */
+        .container.animating-to-register .form-container,
+        .container.animating-to-login .form-container {
+            opacity: 0;
+        }
+
         .container.register-mode .login-container {
             opacity: 0;
             z-index: 1;
             pointer-events: none;
-            transition: 0.6s ease-in-out;
         }
 
         .container.register-mode .register-container {
             opacity: 1;
             z-index: 2;
             pointer-events: all;
-            transition: 0.6s ease-in-out 0.4s;
         }
 
-        /* ============================================
-        FORMULARIO - MÁS ESPACIOSO
-        ============================================ */
-
+        /* FORMULARIO */
         .form-box {
             width: 100%;
             max-width: 450px;
@@ -746,6 +360,23 @@ if (isset($_GET['mode']) && $_GET['mode'] === 'register') {
             transition: all 0.3s ease;
             text-transform: uppercase;
             letter-spacing: 1px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .submit-btn::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+            transition: left 0.5s;
+        }
+
+        .submit-btn:hover::before {
+            left: 100%;
         }
 
         .submit-btn:hover {
@@ -849,9 +480,106 @@ if (isset($_GET['mode']) && $_GET['mode'] === 'register') {
             margin-bottom: 15px;
         }
 
+        /* Estilos para validación en tiempo real */
+        .input-group.valid input,
+        .input-group.valid select {
+            border-color: #28a745;
+        }
+
+        .input-group.invalid input,
+        .input-group.invalid select {
+            border-color: #dc3545;
+        }
+
+        .input-feedback {
+            font-size: 12px;
+            margin-top: 5px;
+            display: none;
+        }
+
+        .input-feedback.show {
+            display: block;
+        }
+
+        .input-feedback.error {
+            color: #dc3545;
+        }
+
+        .input-feedback.success {
+            color: #28a745;
+        }
+
+        /* Indicador de fortaleza de contraseña */
+        .password-strength {
+            height: 4px;
+            border-radius: 2px;
+            margin-top: 8px;
+            background: #e8e8e8;
+            overflow: hidden;
+            display: none;
+        }
+
+        .password-strength.show {
+            display: block;
+        }
+
+        .password-strength-bar {
+            height: 100%;
+            width: 0;
+            transition: all 0.3s ease;
+            border-radius: 2px;
+        }
+
+        .password-strength-bar.weak {
+            width: 33%;
+            background: #dc3545;
+        }
+
+        .password-strength-bar.medium {
+            width: 66%;
+            background: #ffc107;
+        }
+
+        .password-strength-bar.strong {
+            width: 100%;
+            background: #28a745;
+        }
+
+        .password-requirements {
+            font-size: 12px;
+            color: #666;
+            margin-top: 8px;
+            padding: 10px;
+            background: #f7f7f7;
+            border-radius: 5px;
+            display: none;
+        }
+
+        .password-requirements.show {
+            display: block;
+        }
+
+        .password-requirements ul {
+            margin: 5px 0 0 0;
+            padding-left: 20px;
+        }
+
+        .password-requirements li {
+            margin: 3px 0;
+        }
+
+        .password-requirements li.valid {
+            color: #28a745;
+        }
+
+        .password-requirements li.invalid {
+            color: #dc3545;
+        }
+
         /* Responsive */
         @media (max-width: 900px) {
-            .overlay-panel {
+            .overlay-panel,
+            .full-screen-overlay {
                 display: none;
             }
 
@@ -891,97 +619,23 @@ if (isset($_GET['mode']) && $_GET['mode'] === 'register') {
                 max-width: 420px;
                 padding: 20px;
             }
-
-            .form-box h3 {
-                font-size: 28px;
-            }
-
-            .input-group input,
-            .input-group select {
-                padding: 13px 16px;
-                font-size: 14px;
-            }
-
-            .submit-btn {
-                padding: 14px;
-                font-size: 15px;
-            }
-        }
-
-        @media (max-width: 768px) {
-            .form-box {
-                max-width: 380px;
-            }
-
-            .form-box h3 {
-                font-size: 26px;
-                margin-bottom: 25px;
-            }
-
-            .input-group input,
-            .input-group select {
-                padding: 12px 14px;
-                font-size: 14px;
-            }
-
-            .submit-btn {
-                padding: 13px;
-                font-size: 14px;
-            }
-        }
-
-        @media (max-width: 480px) {
-            .form-box {
-                max-width: 100%;
-                padding: 15px;
-            }
-
-            .form-box h3 {
-                font-size: 24px;
-            }
-
-            .input-row {
-                grid-template-columns: 1fr;
-                gap: 0;
-            }
-
-            .social-icons a {
-                width: 38px;
-                height: 38px;
-                font-size: 14px;
-            }
-
-            .input-group input,
-            .input-group select {
-                padding: 11px 13px;
-                font-size: 13px;
-            }
-
-            .overlay-panel h2 {
-                font-size: 36px;
-            }
-
-            .overlay-panel p {
-                font-size: 18px;
-            }
         }
     </style>
 </head>
 <body>
+    <!-- Overlay de pantalla completa para transición -->
+    <div class="full-screen-overlay" id="fullScreenOverlay"></div>
+
     <div class="container" id="container">
         
-        <!-- ============================================ -->
         <!-- FORMULARIO DE LOGIN -->
-        <!-- ============================================ -->
         <div class="form-container login-container">
             <div class="form-box">
                 <h3>Iniciar Sesión</h3>
                 
-                <?php if (!$mostrar_registro && !empty($mensaje)): ?>
-                    <div class="alert alert-<?php echo $tipo_mensaje; ?>">
-                        <?php echo htmlspecialchars($mensaje); ?>
-                    </div>
-                <?php endif; ?>
+                <div class="alert alert-success" style="display: none;" id="successAlert">
+                    Mensaje de éxito aquí
+                </div>
 
                 <form method="POST" action="">
                     <input type="hidden" name="form_type" value="login">
@@ -995,7 +649,7 @@ if (isset($_GET['mode']) && $_GET['mode'] === 'register') {
                     </div>
                     
                     <div class="forgot-password">
-                        <a href="<?php echo APP_URL; ?>/views/auth/recuperar.php">¿Olvidaste tu contraseña?</a>
+                        <a href="#">¿Olvidaste tu contraseña?</a>
                     </div>
                     
                     <button type="submit" class="submit-btn">Ingresar</button>
@@ -1011,22 +665,18 @@ if (isset($_GET['mode']) && $_GET['mode'] === 'register') {
                     </div>
                 </div>
 
+                <div class="mobile-switch" style="display: none;">
+                    <p>¿No tienes cuenta?</p>
+                    <a onclick="showRegister()">Regístrate aquí</a>
+                </div>
             </div>
         </div>
 
-        <!-- ============================================ -->
         <!-- FORMULARIO DE REGISTRO -->
-        <!-- ============================================ -->
         <div class="form-container register-container">
             <div class="form-box">
                 <h3>Crear Cuenta</h3>
                 
-                <?php if ($mostrar_registro && !empty($mensaje)): ?>
-                    <div class="alert alert-<?php echo $tipo_mensaje; ?>">
-                        <?php echo htmlspecialchars($mensaje); ?>
-                    </div>
-                <?php endif; ?>
-
                 <form method="POST" action="" id="registerForm">
                     <input type="hidden" name="form_type" value="register">
                     
@@ -1069,15 +719,17 @@ if (isset($_GET['mode']) && $_GET['mode'] === 'register') {
                     <!-- Campos comunes -->
                     <div class="form-section">
                         <div class="input-group">
-                            <input type="email" name="reg_email" placeholder="Email *" required>
+                            <input type="email" name="reg_email" placeholder="Email *" required id="reg_email">
+                            <div class="input-feedback" id="email-feedback"></div>
                         </div>
                         
                         <div class="input-row">
                             <div class="input-group">
-                                <input type="tel" name="telefono" placeholder="Teléfono">
+                                <input type="tel" name="telefono" placeholder="Teléfono" id="telefono">
                             </div>
                             <div class="input-group">
-                                <input type="tel" name="celular" placeholder="Celular *" required>
+                                <input type="tel" name="celular" placeholder="Celular *" required id="celular">
+                                <div class="input-feedback" id="celular-feedback"></div>
                             </div>
                         </div>
 
@@ -1087,13 +739,6 @@ if (isset($_GET['mode']) && $_GET['mode'] === 'register') {
                                 <option value="Panamá">Panamá</option>
                                 <option value="Colón">Colón</option>
                                 <option value="Chiriquí">Chiriquí</option>
-                                <option value="Bocas del Toro">Bocas del Toro</option>
-                                <option value="Veraguas">Veraguas</option>
-                                <option value="Herrera">Herrera</option>
-                                <option value="Los Santos">Los Santos</option>
-                                <option value="Coclé">Coclé</option>
-                                <option value="Darién">Darién</option>
-                                <option value="Panamá Oeste">Panamá Oeste</option>
                             </select>
                         </div>
 
@@ -1102,11 +747,25 @@ if (isset($_GET['mode']) && $_GET['mode'] === 'register') {
                         </div>
 
                         <div class="input-group">
-                            <input type="password" name="reg_password" placeholder="Contraseña *" required minlength="6">
+                            <input type="password" name="reg_password" placeholder="Contraseña *" required minlength="8" id="reg_password">
+                            <div class="password-strength" id="password-strength">
+                                <div class="password-strength-bar" id="password-strength-bar"></div>
+                            </div>
+                            <div class="password-requirements" id="password-requirements">
+                                <strong>La contraseña debe contener:</strong>
+                                <ul>
+                                    <li id="req-length" class="invalid">Mínimo 8 caracteres</li>
+                                    <li id="req-uppercase" class="invalid">Una letra mayúscula</li>
+                                    <li id="req-lowercase" class="invalid">Una letra minúscula</li>
+                                    <li id="req-number" class="invalid">Un número</li>
+                                    <li id="req-special" class="invalid">Un carácter especial (@#$%&*)</li>
+                                </ul>
+                            </div>
                         </div>
                         
                         <div class="input-group">
-                            <input type="password" name="confirm_password" placeholder="Confirmar Contraseña *" required minlength="6">
+                            <input type="password" name="confirm_password" placeholder="Confirmar Contraseña *" required minlength="8" id="confirm_password">
+                            <div class="input-feedback" id="confirm-feedback"></div>
                         </div>
                     </div>
                     
@@ -1132,41 +791,80 @@ if (isset($_GET['mode']) && $_GET['mode'] === 'register') {
 
         <!-- Panel deslizante -->
         <div class="overlay-panel">
-            <div class="overlay-content overlay-left">
-                <h2>¡Hola, Bienvenido!</h2>
-                <p>¿No tienes una cuenta?</p>
-                <button onclick="showRegister()">Registrarse</button>
-            </div>
-            <div class="overlay-content overlay-right">
-                <h2>¡Bienvenido de nuevo!</h2>
-                <p>¿Ya tienes una cuenta?</p>
-                <button onclick="showLogin()">Iniciar Sesión</button>
+            <div class="overlay-content">
+                <!-- Overlay LEFT (Login - visible por defecto) -->
+                <div class="overlay-left">
+                    <h2>¡Hola, Bienvenido!</h2>
+                    <p>¿No tienes una cuenta?</p>
+                    <button type="button" onclick="showRegister()">Registrarse</button>
+                </div>
+                <!-- Overlay RIGHT (Registro - oculto por defecto) -->
+                <div class="overlay-right">
+                    <h2>¡Bienvenido de nuevo!</h2>
+                    <p>¿Ya tienes una cuenta?</p>
+                    <button type="button" onclick="showLogin()">Iniciar Sesión</button>
+                </div>
             </div>
         </div>
     </div>
 
     <script>
         const container = document.getElementById('container');
+        const fullScreenOverlay = document.getElementById('fullScreenOverlay');
+        let isTransitioning = false;
 
         function showRegister() {
-            container.classList.add('register-mode');
+            if (isTransitioning) return;
+            isTransitioning = true;
+            
+            console.log('🔵 Activando transición a REGISTRO');
+            
+            // Activar animación
+            container.classList.add('animating-to-register');
+            
+            // Cambiar modo después de 500ms (mitad de la animación)
+            setTimeout(() => {
+                container.classList.add('register-mode');
+            }, 500);
+            
+            // Limpiar después de completar
+            setTimeout(() => {
+                container.classList.remove('animating-to-register');
+                isTransitioning = false;
+                console.log('✅ Transición completada - Modo REGISTRO activo');
+            }, 1000);
         }
 
         function showLogin() {
-            container.classList.remove('register-mode');
+            if (isTransitioning) return;
+            isTransitioning = true;
+            
+            console.log('🟢 Activando transición a LOGIN');
+            
+            // Activar animación
+            container.classList.add('animating-to-login');
+            
+            // Cambiar modo después de 500ms (mitad de la animación)
+            setTimeout(() => {
+                container.classList.remove('register-mode');
+            }, 500);
+            
+            // Limpiar después de completar
+            setTimeout(() => {
+                container.classList.remove('animating-to-login');
+                isTransitioning = false;
+                console.log('✅ Transición completada - Modo LOGIN activo');
+            }, 1000);
         }
 
-        // Mostrar/ocultar campos según tipo de cliente
         function toggleCampos() {
             const tipoCliente = document.getElementById('tipo_cliente').value;
             const camposPersonal = document.getElementById('campos-personal');
             const camposEmpresa = document.getElementById('campos-empresa');
             
-            // Ocultar todos
             camposPersonal.classList.remove('active');
             camposEmpresa.classList.remove('active');
             
-            // Deshabilitar todos los campos
             document.getElementById('nombre').required = false;
             document.getElementById('apellido').required = false;
             document.getElementById('cedula').required = false;
@@ -1182,23 +880,189 @@ if (isset($_GET['mode']) && $_GET['mode'] === 'register') {
             }
         }
 
-        // Detectar si venimos de un enlace específico
-        const urlParams = new URLSearchParams(window.location.search);
-        if (urlParams.get('mode') === 'register') {
-            showRegister();
+        // Log inicial
+        console.log('🚀 Sistema de login profesional cargado');
+        console.log('⚡ Transiciones mejoradas activadas');
+
+        // ============================================
+        // VALIDACIONES EN TIEMPO REAL
+        // ============================================
+
+        // Validación de fortaleza de contraseña
+        const regPassword = document.getElementById('reg_password');
+        const confirmPassword = document.getElementById('confirm_password');
+        const passwordStrength = document.getElementById('password-strength');
+        const passwordStrengthBar = document.getElementById('password-strength-bar');
+        const passwordRequirements = document.getElementById('password-requirements');
+        const confirmFeedback = document.getElementById('confirm-feedback');
+        const registerForm = document.getElementById('registerForm');
+
+        // Requisitos
+        const reqLength = document.getElementById('req-length');
+        const reqUppercase = document.getElementById('req-uppercase');
+        const reqLowercase = document.getElementById('req-lowercase');
+        const reqNumber = document.getElementById('req-number');
+        const reqSpecial = document.getElementById('req-special');
+
+        // Mostrar requisitos al hacer focus
+        regPassword.addEventListener('focus', function() {
+            passwordRequirements.classList.add('show');
+            passwordStrength.classList.add('show');
+        });
+
+        // Validar contraseña en tiempo real
+        regPassword.addEventListener('input', function() {
+            const password = this.value;
+            let strength = 0;
+            
+            // Verificar cada requisito
+            const hasLength = password.length >= 8;
+            const hasUppercase = /[A-Z]/.test(password);
+            const hasLowercase = /[a-z]/.test(password);
+            const hasNumber = /[0-9]/.test(password);
+            const hasSpecial = /[@#$%&*!?]/.test(password);
+
+            // Actualizar UI de requisitos
+            reqLength.className = hasLength ? 'valid' : 'invalid';
+            reqUppercase.className = hasUppercase ? 'valid' : 'invalid';
+            reqLowercase.className = hasLowercase ? 'valid' : 'invalid';
+            reqNumber.className = hasNumber ? 'valid' : 'invalid';
+            reqSpecial.className = hasSpecial ? 'valid' : 'invalid';
+
+            // Calcular fortaleza
+            if (hasLength) strength++;
+            if (hasUppercase) strength++;
+            if (hasLowercase) strength++;
+            if (hasNumber) strength++;
+            if (hasSpecial) strength++;
+
+            // Actualizar barra de fortaleza
+            passwordStrengthBar.className = 'password-strength-bar';
+            if (strength <= 2) {
+                passwordStrengthBar.classList.add('weak');
+            } else if (strength <= 4) {
+                passwordStrengthBar.classList.add('medium');
+            } else {
+                passwordStrengthBar.classList.add('strong');
+            }
+
+            // Validar contraseña de confirmación si ya tiene contenido
+            if (confirmPassword.value) {
+                validateConfirmPassword();
+            }
+        });
+
+        // Validar que las contraseñas coincidan
+        function validateConfirmPassword() {
+            const password = regPassword.value;
+            const confirm = confirmPassword.value;
+            const parent = confirmPassword.parentElement;
+
+            if (confirm === '') {
+                parent.classList.remove('valid', 'invalid');
+                confirmFeedback.classList.remove('show');
+                return;
+            }
+
+            if (password === confirm) {
+                parent.classList.add('valid');
+                parent.classList.remove('invalid');
+                confirmFeedback.className = 'input-feedback success show';
+                confirmFeedback.textContent = '✓ Las contraseñas coinciden';
+            } else {
+                parent.classList.add('invalid');
+                parent.classList.remove('valid');
+                confirmFeedback.className = 'input-feedback error show';
+                confirmFeedback.textContent = '✗ Las contraseñas no coinciden';
+            }
         }
 
-        // Si hay mensaje de éxito en registro, volver a login después de 3 segundos
-        <?php if ($tipo_mensaje === 'success' && $mostrar_registro): ?>
-        setTimeout(function() {
-            showLogin();
-        }, 3000);
-        <?php endif; ?>
+        confirmPassword.addEventListener('input', validateConfirmPassword);
 
-        // Si venimos del PHP con modo registro, activarlo
-        <?php if ($mostrar_registro): ?>
-        showRegister();
-        <?php endif; ?>
+        // Validación de email
+        const regEmail = document.getElementById('reg_email');
+        const emailFeedback = document.getElementById('email-feedback');
+
+        regEmail.addEventListener('blur', function() {
+            const email = this.value;
+            const parent = this.parentElement;
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+            if (!email) return;
+
+            if (emailRegex.test(email)) {
+                parent.classList.add('valid');
+                parent.classList.remove('invalid');
+                emailFeedback.className = 'input-feedback success show';
+                emailFeedback.textContent = '✓ Email válido';
+            } else {
+                parent.classList.add('invalid');
+                parent.classList.remove('valid');
+                emailFeedback.className = 'input-feedback error show';
+                emailFeedback.textContent = '✗ Email inválido';
+            }
+        });
+
+        // Validación de celular panameño
+        const celular = document.getElementById('celular');
+        const celularFeedback = document.getElementById('celular-feedback');
+
+        celular.addEventListener('input', function() {
+            // Permitir solo números y guiones
+            this.value = this.value.replace(/[^\d-]/g, '');
+        });
+
+        celular.addEventListener('blur', function() {
+            const phone = this.value;
+            const parent = this.parentElement;
+            
+            if (!phone) return;
+
+            // Formato panameño: 8 dígitos (6XXX-XXXX o 2XX-XXXX, etc.)
+            const phoneRegex = /^\d{4}-?\d{4}$/;
+
+            if (phoneRegex.test(phone.replace(/-/g, ''))) {
+                parent.classList.add('valid');
+                parent.classList.remove('invalid');
+                celularFeedback.className = 'input-feedback success show';
+                celularFeedback.textContent = '✓ Número válido';
+            } else {
+                parent.classList.add('invalid');
+                parent.classList.remove('valid');
+                celularFeedback.className = 'input-feedback error show';
+                celularFeedback.textContent = '✗ Formato: XXXX-XXXX';
+            }
+        });
+
+        // Validación del formulario antes de enviar
+        registerForm.addEventListener('submit', function(e) {
+            const password = regPassword.value;
+            const confirm = confirmPassword.value;
+
+            // Verificar fortaleza de contraseña
+            const hasLength = password.length >= 8;
+            const hasUppercase = /[A-Z]/.test(password);
+            const hasLowercase = /[a-z]/.test(password);
+            const hasNumber = /[0-9]/.test(password);
+            const hasSpecial = /[@#$%&*!?]/.test(password);
+
+            if (!hasLength || !hasUppercase || !hasLowercase || !hasNumber || !hasSpecial) {
+                e.preventDefault();
+                alert('La contraseña no cumple con todos los requisitos de seguridad.');
+                regPassword.focus();
+                return false;
+            }
+
+            // Verificar que las contraseñas coincidan
+            if (password !== confirm) {
+                e.preventDefault();
+                alert('Las contraseñas no coinciden.');
+                confirmPassword.focus();
+                return false;
+            }
+
+            return true;
+        });
     </script>
 </body>
 </html>

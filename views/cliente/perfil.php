@@ -643,10 +643,8 @@
         <nav class="nav-menu">
             <div class="nav-left">
                 <a href="http://localhost/Gestion_de_Polizas/views/cliente/dashboardCliente.php" class="nav-item">Pólizas</a>
-                <a href="#" class="nav-item">Consultas</a>
-                <a href="#" class="nav-item">Transacciones</a>
-                <a href="#" class="nav-item">Recargas</a>
-                <a href="#" class="nav-item">Solicitudes</a>
+                <a href="#" class="nav-item">Documentos</a>
+                <a href="#" class="nav-item">Contacto</a>
                 <a href="http://localhost/Gestion_de_Polizas/views/cliente/perfil.php" class="nav-item active">Mi Perfil</a>
             </div>
             <div class="user-info">
