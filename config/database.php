@@ -18,7 +18,7 @@ class Database {
             // CONFIGURACIÓN LOCAL (XAMPP/WAMP/MAMP)
             return [
                 'host' => 'localhost',
-                'dbname' => 'portalseguro',
+                'dbname' => 'portalseguros',
                 'username' => 'root',
                 'password' => '',  
                 'charset' => 'utf8mb4',
@@ -34,7 +34,7 @@ class Database {
             // ⚠️ CAMBIAR ESTOS VALORES CON TUS CREDENCIALES REALES
             return [
                 'host' => 'localhost',
-                'dbname' => 'portalseguro',  // iPower agrega prefijo
+                'dbname' => 'portalseguros',  
                 'username' => 'root',
                 'password' => '',
                 'charset' => 'utf8mb4',

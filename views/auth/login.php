@@ -1,3 +1,136 @@
+<?php
+session_start();
+
+// Mostrar errores para debug (quitar en producción)
+ini_set('display_errors', 1);
+ini_set('display_startup_errors', 1);
+error_reporting(E_ALL);
+
+require_once __DIR__ . '/../../config/database.php';
+
+$mensaje = '';
+$tipo_mensaje = '';
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $form_type = $_POST['form_type'] ?? '';
+    $db = Database::getInstance()->getConnection();
+    
+    if ($form_type === 'login') {
+        $email = filter_var($_POST['email'] ?? '', FILTER_SANITIZE_EMAIL);
+        $password = $_POST['password'] ?? '';
+        
+        if (empty($email) || empty($password)) {
+            $mensaje = 'Por favor completa todos los campos';
+            $tipo_mensaje = 'error';
+        } else {
+            try {
+                $stmt = $db->prepare("SELECT id, nombre, apellido, email, password_hash, tipo_cliente FROM clientes WHERE email = ?");
+                $stmt->execute([$email]);
+                $usuario = $stmt->fetch(PDO::FETCH_ASSOC);
+                
+                if ($usuario && password_verify($password, $usuario['password_hash'])) {
+                    $_SESSION['user_id'] = $usuario['id'];
+                    $_SESSION['user_name'] = $usuario['nombre'] . ' ' . $usuario['apellido'];
+                    $_SESSION['user_email'] = $usuario['email'];
+                    $_SESSION['tipo_cliente'] = $usuario['tipo_cliente'];
+                    
+                    // Redirigir al dashboard del cliente
+                    header('Location: ../../views/cliente/dashboardCliente.php');
+                    exit;
+                } else {
+                    $mensaje = 'Email o contraseña incorrectos';
+                    $tipo_mensaje = 'error';
+                }
+            } catch (PDOException $e) {
+                $mensaje = 'Error al iniciar sesión. Intenta de nuevo.';
+                $tipo_mensaje = 'error';
+                error_log($e->getMessage());
+            }
+        }
+        
+    } elseif ($form_type === 'register') {
+        $tipo_cliente = $_POST['tipo_cliente'] ?? '';
+        $email = filter_var($_POST['reg_email'] ?? '', FILTER_SANITIZE_EMAIL);
+        $password = $_POST['reg_password'] ?? '';
+        $confirm_password = $_POST['confirm_password'] ?? '';
+        
+        if (empty($tipo_cliente) || empty($email) || empty($password)) {
+            $mensaje = 'Por favor completa todos los campos obligatorios';
+            $tipo_mensaje = 'error';
+        } elseif ($password !== $confirm_password) {
+            $mensaje = 'Las contraseñas no coinciden';
+            $tipo_mensaje = 'error';
+        } elseif (strlen($password) < 8) {
+            $mensaje = 'La contraseña debe tener al menos 8 caracteres';
+            $tipo_mensaje = 'error';
+        } elseif (!preg_match('/[A-Z]/', $password) || !preg_match('/[a-z]/', $password) || 
+                  !preg_match('/[0-9]/', $password) || !preg_match('/[@#$%&*!?]/', $password)) {
+            $mensaje = 'La contraseña debe contener mayúsculas, minúsculas, números y caracteres especiales';
+            $tipo_mensaje = 'error';
+        } else {
+            try {
+                $stmt = $db->prepare("SELECT id FROM clientes WHERE email = ?");
+                $stmt->execute([$email]);
+                
+                if ($stmt->fetch()) {
+                    $mensaje = 'Este email ya está registrado';
+                    $tipo_mensaje = 'error';
+                } else {
+                    $nombre = '';
+                    $apellido = '';
+                    $cedula = null;
+                    $razon_social = null;
+                    $ruc = null;
+                    
+                    if ($tipo_cliente === 'Personal') {
+                        $nombre = $_POST['nombre'] ?? '';
+                        $apellido = $_POST['apellido'] ?? '';
+                        $cedula = $_POST['cedula'] ?? null;
+                        
+                        if (empty($nombre) || empty($apellido)) {
+                            $mensaje = 'Nombre y apellido son obligatorios para clientes personales';
+                            $tipo_mensaje = 'error';
+                        }
+                    } elseif ($tipo_cliente === 'Empresa') {
+                        $razon_social = $_POST['razon_social'] ?? '';
+                        $ruc = $_POST['ruc'] ?? null;
+                        
+                        if (empty($razon_social)) {
+                            $mensaje = 'Razón social es obligatoria para empresas';
+                            $tipo_mensaje = 'error';
+                        }
+                    }
+                    
+                    if (empty($mensaje)) {
+                        $telefono = $_POST['telefono'] ?? null;
+                        $celular = $_POST['celular'] ?? null;
+                        $provincia = $_POST['provincia'] ?? null;
+                        $direccion = $_POST['direccion'] ?? null;
+                        $password_hash = password_hash($password, PASSWORD_BCRYPT);
+                        
+                        $sql = "INSERT INTO clientes (tipo_cliente, nombre, apellido, cedula, razon_social, ruc, 
+                                email, telefono, celular, provincia, direccion, password_hash, fecha_registro) 
+                                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())";
+                        
+                        $stmt = $db->prepare($sql);
+                        $stmt->execute([
+                            $tipo_cliente, $nombre, $apellido, $cedula, $razon_social, $ruc,
+                            $email, $telefono, $celular, $provincia, $direccion, $password_hash
+                        ]);
+                        
+                        $mensaje = 'Registro exitoso. Ya puedes iniciar sesión';
+                        $tipo_mensaje = 'success';
+                    }
+                }
+            } catch (PDOException $e) {
+                $mensaje = 'Error al registrar: ' . $e->getMessage();
+                $tipo_mensaje = 'error';
+                error_log($e->getMessage());
+            }
+        }
+    }
+}
+?>
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -15,8 +148,6 @@
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             background: #f0f2f5;
             min-height: 100vh;
-            margin: 0;
-            padding: 0;
             overflow: hidden;
         }
 
@@ -27,33 +158,6 @@
             background: white;
             overflow: hidden;
         }
-
-        /* ============================================
-        OVERLAY DE TRANSICIÓN COMPLETA - PROFESIONAL
-        ============================================ */
-        
-        .full-screen-overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: #004B93;
-            z-index: 999;
-            opacity: 0;
-            visibility: hidden;
-            transition: opacity 0.4s ease, visibility 0.4s ease;
-            pointer-events: none;
-        }
-
-        .full-screen-overlay.active {
-            opacity: 1;
-            visibility: visible;
-        }
-
-        /* ============================================
-        Panel deslizante - ANIMACIÓN PROFESIONAL
-        ============================================ */
 
         .overlay-panel {
             position: absolute;
@@ -70,55 +174,26 @@
             align-items: center;
             justify-content: center;
             padding: 60px 40px;
-            /* Transición suave y profesional */
             transition: all 0.8s cubic-bezier(0.68, -0.55, 0.265, 1.55);
         }
 
-        /* Estado final - Modo registro */
         .container.register-mode .overlay-panel {
             transform: translateX(100%);
             border-radius: 80px 0 0 80px;
         }
 
-        /* ANIMACIÓN: De LOGIN a REGISTRO */
         @keyframes slideToRegister {
-            0% {
-                transform: translateX(0);
-                width: 50%;
-                border-radius: 0 80px 80px 0;
-            }
-            50% {
-                transform: translateX(0);
-                width: 100%;
-                border-radius: 0;
-            }
-            100% {
-                transform: translateX(100%);
-                width: 50%;
-                border-radius: 80px 0 0 80px;
-            }
+            0% { transform: translateX(0); width: 50%; border-radius: 0 80px 80px 0; }
+            50% { transform: translateX(0); width: 100%; border-radius: 0; }
+            100% { transform: translateX(100%); width: 50%; border-radius: 80px 0 0 80px; }
         }
 
-        /* ANIMACIÓN: De REGISTRO a LOGIN */
         @keyframes slideToLogin {
-            0% {
-                transform: translateX(100%);
-                width: 50%;
-                border-radius: 80px 0 0 80px;
-            }
-            50% {
-                transform: translateX(0);
-                width: 100%;
-                border-radius: 0;
-            }
-            100% {
-                transform: translateX(0);
-                width: 50%;
-                border-radius: 0 80px 80px 0;
-            }
+            0% { transform: translateX(100%); width: 50%; border-radius: 80px 0 0 80px; }
+            50% { transform: translateX(0); width: 100%; border-radius: 0; }
+            100% { transform: translateX(0); width: 50%; border-radius: 0 80px 80px 0; }
         }
 
-        /* Aplicar animaciones */
         .container.animating-to-register .overlay-panel {
             animation: slideToRegister 1s ease-in-out forwards;
         }
@@ -127,7 +202,6 @@
             animation: slideToLogin 1s ease-in-out forwards;
         }
 
-        /* Contenedor wrapper */
         .overlay-content {
             position: relative;
             width: 100%;
@@ -135,9 +209,7 @@
             min-height: 300px;
         }
 
-        /* Ambos overlays superpuestos */
-        .overlay-left,
-        .overlay-right {
+        .overlay-left, .overlay-right {
             position: absolute;
             top: 0;
             left: 0;
@@ -146,48 +218,38 @@
             transition: all 0.6s ease-in-out;
         }
 
-        /* Estado inicial (LOGIN visible) */
         .overlay-left {
             opacity: 1;
             visibility: visible;
-            pointer-events: all;
         }
 
         .overlay-right {
             opacity: 0;
             visibility: hidden;
-            pointer-events: none;
         }
 
-        /* Estado REGISTRO */
         .container.register-mode .overlay-left {
             opacity: 0;
             visibility: hidden;
-            pointer-events: none;
         }
 
         .container.register-mode .overlay-right {
             opacity: 1;
             visibility: visible;
-            pointer-events: all;
         }
 
-        /* Tipografía */
         .overlay-panel h2 {
             font-size: 42px;
             margin-bottom: 25px;
             font-weight: 600;
-            line-height: 1.2;
         }
 
         .overlay-panel p {
             font-size: 20px;
             margin-bottom: 40px;
             opacity: 0.95;
-            line-height: 1.5;
         }
 
-        /* Botón mejorado */
         .overlay-panel button {
             background: transparent;
             border: 2px solid white;
@@ -200,28 +262,6 @@
             transition: all 0.3s ease;
             text-transform: uppercase;
             letter-spacing: 1px;
-            outline: none;
-            position: relative;
-            overflow: hidden;
-        }
-
-        /* Efecto ripple en botón */
-        .overlay-panel button::before {
-            content: '';
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            width: 0;
-            height: 0;
-            border-radius: 50%;
-            background: rgba(255, 255, 255, 0.3);
-            transform: translate(-50%, -50%);
-            transition: width 0.6s, height 0.6s;
-        }
-
-        .overlay-panel button:hover::before {
-            width: 300px;
-            height: 300px;
         }
 
         .overlay-panel button:hover {
@@ -229,14 +269,6 @@
             color: #004B93;
             transform: scale(1.05);
         }
-
-        .overlay-panel button:active {
-            transform: scale(0.98);
-        }
-
-        /* ============================================
-        CONTENEDORES DE FORMULARIOS - MEJORADOS
-        ============================================ */
 
         .form-container {
             position: absolute;
@@ -247,7 +279,7 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            padding: 30px 30px;
+            padding: 30px;
             overflow-y: auto;
         }
 
@@ -265,7 +297,6 @@
             align-items: flex-start;
         }
 
-        /* Durante transición - ocultar formularios */
         .container.animating-to-register .form-container,
         .container.animating-to-login .form-container {
             opacity: 0;
@@ -283,7 +314,6 @@
             pointer-events: all;
         }
 
-        /* FORMULARIO */
         .form-box {
             width: 100%;
             max-width: 450px;
@@ -294,7 +324,6 @@
             color: #333;
             font-size: 32px;
             margin-bottom: 30px;
-            margin-top: 10px;
             text-align: center;
             font-weight: 700;
         }
@@ -304,8 +333,7 @@
             margin-bottom: 22px;
         }
 
-        .input-group input,
-        .input-group select {
+        .input-group input, .input-group select {
             width: 100%;
             padding: 15px 18px;
             border: 2px solid #e8e8e8;
@@ -315,8 +343,7 @@
             background: #f7f7f7;
         }
 
-        .input-group input:focus,
-        .input-group select:focus {
+        .input-group input:focus, .input-group select:focus {
             outline: none;
             border-color: #004B93;
             background: white;
@@ -340,11 +367,6 @@
             text-decoration: none;
             font-size: 14px;
             font-weight: 500;
-            transition: all 0.3s ease;
-        }
-
-        .forgot-password a:hover {
-            color: #003366;
         }
 
         .submit-btn {
@@ -360,73 +382,12 @@
             transition: all 0.3s ease;
             text-transform: uppercase;
             letter-spacing: 1px;
-            position: relative;
-            overflow: hidden;
-        }
-
-        .submit-btn::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: -100%;
-            width: 100%;
-            height: 100%;
-            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
-            transition: left 0.5s;
-        }
-
-        .submit-btn:hover::before {
-            left: 100%;
         }
 
         .submit-btn:hover {
             transform: translateY(-2px);
             box-shadow: 0 8px 25px rgba(0, 75, 147, 0.4);
             background: #003366;
-        }
-
-        .submit-btn:active {
-            transform: translateY(0);
-        }
-
-        .social-login {
-            margin-top: 35px;
-            text-align: center;
-        }
-
-        .social-login p {
-            color: #999;
-            font-size: 14px;
-            margin-bottom: 18px;
-        }
-
-        .social-icons {
-            display: flex;
-            justify-content: center;
-            gap: 15px;
-        }
-
-        .social-icons a {
-            width: 45px;
-            height: 45px;
-            border: 2px solid #e8e8e8;
-            border-radius: 10px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: #666;
-            text-decoration: none;
-            font-weight: 600;
-            font-size: 16px;
-            transition: all 0.3s ease;
-            background: #f7f7f7;
-        }
-
-        .social-icons a:hover {
-            border-color: #004B93;
-            background: #004B93;
-            color: white;
-            transform: translateY(-3px);
         }
 
         .alert {
@@ -438,14 +399,13 @@
         }
 
         @keyframes slideIn {
-            from {
-                opacity: 0;
-                transform: translateY(-10px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        @keyframes slideOut {
+            from { opacity: 1; transform: translateY(0); }
+            to { opacity: 0; transform: translateY(-10px); }
         }
 
         .alert-error {
@@ -476,18 +436,11 @@
             font-weight: 500;
         }
 
-        .form-section {
-            margin-bottom: 15px;
-        }
-
-        /* Estilos para validación en tiempo real */
-        .input-group.valid input,
-        .input-group.valid select {
+        .input-group.valid input, .input-group.valid select {
             border-color: #28a745;
         }
 
-        .input-group.invalid input,
-        .input-group.invalid select {
+        .input-group.invalid input, .input-group.invalid select {
             border-color: #dc3545;
         }
 
@@ -509,7 +462,6 @@
             color: #28a745;
         }
 
-        /* Indicador de fortaleza de contraseña */
         .password-strength {
             height: 4px;
             border-radius: 2px;
@@ -576,10 +528,8 @@
             color: #dc3545;
         }
 
-        /* Responsive */
         @media (max-width: 900px) {
-            .overlay-panel,
-            .full-screen-overlay {
+            .overlay-panel {
                 display: none;
             }
 
@@ -623,9 +573,6 @@
     </style>
 </head>
 <body>
-    <!-- Overlay de pantalla completa para transición -->
-    <div class="full-screen-overlay" id="fullScreenOverlay"></div>
-
     <div class="container" id="container">
         
         <!-- FORMULARIO DE LOGIN -->
@@ -633,15 +580,18 @@
             <div class="form-box">
                 <h3>Iniciar Sesión</h3>
                 
-                <div class="alert alert-success" style="display: none;" id="successAlert">
-                    Mensaje de éxito aquí
-                </div>
+                <?php if ($tipo_mensaje && $form_type === 'login'): ?>
+                    <div class="alert alert-<?php echo $tipo_mensaje; ?>">
+                        <?php echo htmlspecialchars($mensaje); ?>
+                    </div>
+                <?php endif; ?>
 
                 <form method="POST" action="">
                     <input type="hidden" name="form_type" value="login">
                     
                     <div class="input-group">
-                        <input type="email" name="email" placeholder="Email" required>
+                        <input type="email" name="email" placeholder="Email" required 
+                               value="<?php echo isset($_POST['email']) ? htmlspecialchars($_POST['email']) : ''; ?>">
                     </div>
                     
                     <div class="input-group">
@@ -649,21 +599,11 @@
                     </div>
                     
                     <div class="forgot-password">
-                        <a href="#">¿Olvidaste tu contraseña?</a>
+                        <a href="recuperar.php">¿Olvidaste tu contraseña?</a>
                     </div>
                     
                     <button type="submit" class="submit-btn">Ingresar</button>
                 </form>
-
-                <div class="social-login">
-                    <p>or login with social platforms</p>
-                    <div class="social-icons">
-                        <a href="#" title="Google">G</a>
-                        <a href="#" title="Facebook">f</a>
-                        <a href="#" title="GitHub">⚡</a>
-                        <a href="#" title="LinkedIn">in</a>
-                    </div>
-                </div>
 
                 <div class="mobile-switch" style="display: none;">
                     <p>¿No tienes cuenta?</p>
@@ -677,18 +617,22 @@
             <div class="form-box">
                 <h3>Crear Cuenta</h3>
                 
+                <?php if ($tipo_mensaje && $form_type === 'register'): ?>
+                    <div class="alert alert-<?php echo $tipo_mensaje; ?>" id="registerAlert">
+                        <?php echo htmlspecialchars($mensaje); ?>
+                    </div>
+                <?php endif; ?>
+                
                 <form method="POST" action="" id="registerForm">
                     <input type="hidden" name="form_type" value="register">
                     
-                    <div class="form-section">
-                        <div class="input-group">
-                            <label>Tipo de Cliente *</label>
-                            <select name="tipo_cliente" id="tipo_cliente" required onchange="toggleCampos()">
-                                <option value="">Seleccione...</option>
-                                <option value="Personal">Personal</option>
-                                <option value="Empresa">Empresa</option>
-                            </select>
-                        </div>
+                    <div class="input-group">
+                        <label>Tipo de Cliente *</label>
+                        <select name="tipo_cliente" id="tipo_cliente" required onchange="toggleCampos()">
+                            <option value="">Seleccione...</option>
+                            <option value="Personal">Personal</option>
+                            <option value="Empresa">Empresa</option>
+                        </select>
                     </div>
 
                     <!-- Campos para Personal -->
@@ -717,70 +661,58 @@
                     </div>
 
                     <!-- Campos comunes -->
-                    <div class="form-section">
+                    <div class="input-group">
+                        <input type="email" name="reg_email" placeholder="Email *" required id="reg_email">
+                        <div class="input-feedback" id="email-feedback"></div>
+                    </div>
+                    
+                    <div class="input-row">
                         <div class="input-group">
-                            <input type="email" name="reg_email" placeholder="Email *" required id="reg_email">
-                            <div class="input-feedback" id="email-feedback"></div>
+                            <input type="tel" name="telefono" placeholder="Teléfono" id="telefono">
                         </div>
-                        
-                        <div class="input-row">
-                            <div class="input-group">
-                                <input type="tel" name="telefono" placeholder="Teléfono" id="telefono">
-                            </div>
-                            <div class="input-group">
-                                <input type="tel" name="celular" placeholder="Celular *" required id="celular">
-                                <div class="input-feedback" id="celular-feedback"></div>
-                            </div>
+                        <div class="input-group">
+                            <input type="tel" name="celular" placeholder="Celular *" required id="celular">
+                            <div class="input-feedback" id="celular-feedback"></div>
                         </div>
+                    </div>
 
-                        <div class="input-group">
-                            <select name="provincia">
-                                <option value="">Provincia</option>
-                                <option value="Panamá">Panamá</option>
-                                <option value="Colón">Colón</option>
-                                <option value="Chiriquí">Chiriquí</option>
-                            </select>
-                        </div>
+                    <div class="input-group">
+                        <select name="provincia">
+                            <option value="">Provincia</option>
+                            <option value="Panamá">Panamá</option>
+                            <option value="Colón">Colón</option>
+                            <option value="Chiriquí">Chiriquí</option>
+                        </select>
+                    </div>
 
-                        <div class="input-group">
-                            <input type="text" name="direccion" placeholder="Dirección">
-                        </div>
+                    <div class="input-group">
+                        <input type="text" name="direccion" placeholder="Dirección">
+                    </div>
 
-                        <div class="input-group">
-                            <input type="password" name="reg_password" placeholder="Contraseña *" required minlength="8" id="reg_password">
-                            <div class="password-strength" id="password-strength">
-                                <div class="password-strength-bar" id="password-strength-bar"></div>
-                            </div>
-                            <div class="password-requirements" id="password-requirements">
-                                <strong>La contraseña debe contener:</strong>
-                                <ul>
-                                    <li id="req-length" class="invalid">Mínimo 8 caracteres</li>
-                                    <li id="req-uppercase" class="invalid">Una letra mayúscula</li>
-                                    <li id="req-lowercase" class="invalid">Una letra minúscula</li>
-                                    <li id="req-number" class="invalid">Un número</li>
-                                    <li id="req-special" class="invalid">Un carácter especial (@#$%&*)</li>
-                                </ul>
-                            </div>
+                    <div class="input-group">
+                        <input type="password" name="reg_password" placeholder="Contraseña *" required minlength="8" id="reg_password">
+                        <div class="password-strength" id="password-strength">
+                            <div class="password-strength-bar" id="password-strength-bar"></div>
                         </div>
-                        
-                        <div class="input-group">
-                            <input type="password" name="confirm_password" placeholder="Confirmar Contraseña *" required minlength="8" id="confirm_password">
-                            <div class="input-feedback" id="confirm-feedback"></div>
+                        <div class="password-requirements" id="password-requirements">
+                            <strong>La contraseña debe contener:</strong>
+                            <ul>
+                                <li id="req-length" class="invalid">Mínimo 8 caracteres</li>
+                                <li id="req-uppercase" class="invalid">Una letra mayúscula</li>
+                                <li id="req-lowercase" class="invalid">Una letra minúscula</li>
+                                <li id="req-number" class="invalid">Un número</li>
+                                <li id="req-special" class="invalid">Un carácter especial (@#$%&*)</li>
+                            </ul>
                         </div>
+                    </div>
+                    
+                    <div class="input-group">
+                        <input type="password" name="confirm_password" placeholder="Confirmar Contraseña *" required minlength="8" id="confirm_password">
+                        <div class="input-feedback" id="confirm-feedback"></div>
                     </div>
                     
                     <button type="submit" class="submit-btn">Registrarme</button>
                 </form>
-
-                <div class="social-login">
-                    <p>or register with social platforms</p>
-                    <div class="social-icons">
-                        <a href="#" title="Google">G</a>
-                        <a href="#" title="Facebook">f</a>
-                        <a href="#" title="GitHub">⚡</a>
-                        <a href="#" title="LinkedIn">in</a>
-                    </div>
-                </div>
 
                 <div class="mobile-switch" style="display: none;">
                     <p>¿Ya tienes cuenta?</p>
@@ -792,13 +724,11 @@
         <!-- Panel deslizante -->
         <div class="overlay-panel">
             <div class="overlay-content">
-                <!-- Overlay LEFT (Login - visible por defecto) -->
                 <div class="overlay-left">
-                    <h2>¡Hola, Bienvenido!</h2>
+                    <h2>¡Hola, Bienvenido a Haseguros!</h2>
                     <p>¿No tienes una cuenta?</p>
                     <button type="button" onclick="showRegister()">Registrarse</button>
                 </div>
-                <!-- Overlay RIGHT (Registro - oculto por defecto) -->
                 <div class="overlay-right">
                     <h2>¡Bienvenido de nuevo!</h2>
                     <p>¿Ya tienes una cuenta?</p>
@@ -810,161 +740,98 @@
 
     <script>
         const container = document.getElementById('container');
-        const fullScreenOverlay = document.getElementById('fullScreenOverlay');
         let isTransitioning = false;
 
         function showRegister() {
             if (isTransitioning) return;
             isTransitioning = true;
-            
-            console.log('🔵 Activando transición a REGISTRO');
-            
-            // Activar animación
             container.classList.add('animating-to-register');
-            
-            // Cambiar modo después de 500ms (mitad de la animación)
-            setTimeout(() => {
-                container.classList.add('register-mode');
-            }, 500);
-            
-            // Limpiar después de completar
+            setTimeout(() => container.classList.add('register-mode'), 500);
             setTimeout(() => {
                 container.classList.remove('animating-to-register');
                 isTransitioning = false;
-                console.log('✅ Transición completada - Modo REGISTRO activo');
             }, 1000);
         }
 
         function showLogin() {
             if (isTransitioning) return;
             isTransitioning = true;
-            
-            console.log('🟢 Activando transición a LOGIN');
-            
-            // Activar animación
             container.classList.add('animating-to-login');
-            
-            // Cambiar modo después de 500ms (mitad de la animación)
-            setTimeout(() => {
-                container.classList.remove('register-mode');
-            }, 500);
-            
-            // Limpiar después de completar
+            setTimeout(() => container.classList.remove('register-mode'), 500);
             setTimeout(() => {
                 container.classList.remove('animating-to-login');
                 isTransitioning = false;
-                console.log('✅ Transición completada - Modo LOGIN activo');
             }, 1000);
         }
 
         function toggleCampos() {
-            const tipoCliente = document.getElementById('tipo_cliente').value;
-            const camposPersonal = document.getElementById('campos-personal');
-            const camposEmpresa = document.getElementById('campos-empresa');
+            const tipo = document.getElementById('tipo_cliente').value;
+            const personal = document.getElementById('campos-personal');
+            const empresa = document.getElementById('campos-empresa');
             
-            camposPersonal.classList.remove('active');
-            camposEmpresa.classList.remove('active');
+            personal.classList.remove('active');
+            empresa.classList.remove('active');
             
-            document.getElementById('nombre').required = false;
-            document.getElementById('apellido').required = false;
-            document.getElementById('cedula').required = false;
-            document.getElementById('razon_social').required = false;
+            ['nombre', 'apellido', 'cedula', 'razon_social'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.required = false;
+            });
             
-            if (tipoCliente === 'Personal') {
-                camposPersonal.classList.add('active');
+            if (tipo === 'Personal') {
+                personal.classList.add('active');
                 document.getElementById('nombre').required = true;
                 document.getElementById('apellido').required = true;
-            } else if (tipoCliente === 'Empresa') {
-                camposEmpresa.classList.add('active');
+            } else if (tipo === 'Empresa') {
+                empresa.classList.add('active');
                 document.getElementById('razon_social').required = true;
             }
         }
 
-        // Log inicial
-        console.log('🚀 Sistema de login profesional cargado');
-        console.log('⚡ Transiciones mejoradas activadas');
-
-        // ============================================
-        // VALIDACIONES EN TIEMPO REAL
-        // ============================================
-
-        // Validación de fortaleza de contraseña
         const regPassword = document.getElementById('reg_password');
         const confirmPassword = document.getElementById('confirm_password');
         const passwordStrength = document.getElementById('password-strength');
         const passwordStrengthBar = document.getElementById('password-strength-bar');
         const passwordRequirements = document.getElementById('password-requirements');
         const confirmFeedback = document.getElementById('confirm-feedback');
-        const registerForm = document.getElementById('registerForm');
 
-        // Requisitos
-        const reqLength = document.getElementById('req-length');
-        const reqUppercase = document.getElementById('req-uppercase');
-        const reqLowercase = document.getElementById('req-lowercase');
-        const reqNumber = document.getElementById('req-number');
-        const reqSpecial = document.getElementById('req-special');
-
-        // Mostrar requisitos al hacer focus
-        regPassword.addEventListener('focus', function() {
+        regPassword.addEventListener('focus', () => {
             passwordRequirements.classList.add('show');
             passwordStrength.classList.add('show');
         });
 
-        // Validar contraseña en tiempo real
         regPassword.addEventListener('input', function() {
-            const password = this.value;
-            let strength = 0;
+            const pwd = this.value;
+            const checks = {
+                length: pwd.length >= 8,
+                uppercase: /[A-Z]/.test(pwd),
+                lowercase: /[a-z]/.test(pwd),
+                number: /[0-9]/.test(pwd),
+                special: /[@#$%&*!?]/.test(pwd)
+            };
             
-            // Verificar cada requisito
-            const hasLength = password.length >= 8;
-            const hasUppercase = /[A-Z]/.test(password);
-            const hasLowercase = /[a-z]/.test(password);
-            const hasNumber = /[0-9]/.test(password);
-            const hasSpecial = /[@#$%&*!?]/.test(password);
+            ['length', 'uppercase', 'lowercase', 'number', 'special'].forEach(req => {
+                document.getElementById('req-' + req).className = checks[req] ? 'valid' : 'invalid';
+            });
 
-            // Actualizar UI de requisitos
-            reqLength.className = hasLength ? 'valid' : 'invalid';
-            reqUppercase.className = hasUppercase ? 'valid' : 'invalid';
-            reqLowercase.className = hasLowercase ? 'valid' : 'invalid';
-            reqNumber.className = hasNumber ? 'valid' : 'invalid';
-            reqSpecial.className = hasSpecial ? 'valid' : 'invalid';
+            const strength = Object.values(checks).filter(Boolean).length;
+            passwordStrengthBar.className = 'password-strength-bar ' + 
+                (strength <= 2 ? 'weak' : strength <= 4 ? 'medium' : 'strong');
 
-            // Calcular fortaleza
-            if (hasLength) strength++;
-            if (hasUppercase) strength++;
-            if (hasLowercase) strength++;
-            if (hasNumber) strength++;
-            if (hasSpecial) strength++;
-
-            // Actualizar barra de fortaleza
-            passwordStrengthBar.className = 'password-strength-bar';
-            if (strength <= 2) {
-                passwordStrengthBar.classList.add('weak');
-            } else if (strength <= 4) {
-                passwordStrengthBar.classList.add('medium');
-            } else {
-                passwordStrengthBar.classList.add('strong');
-            }
-
-            // Validar contraseña de confirmación si ya tiene contenido
-            if (confirmPassword.value) {
-                validateConfirmPassword();
-            }
+            if (confirmPassword.value) validateConfirmPassword();
         });
 
-        // Validar que las contraseñas coincidan
         function validateConfirmPassword() {
-            const password = regPassword.value;
+            const pwd = regPassword.value;
             const confirm = confirmPassword.value;
             const parent = confirmPassword.parentElement;
 
-            if (confirm === '') {
+            if (!confirm) {
                 parent.classList.remove('valid', 'invalid');
                 confirmFeedback.classList.remove('show');
                 return;
             }
 
-            if (password === confirm) {
+            if (pwd === confirm) {
                 parent.classList.add('valid');
                 parent.classList.remove('invalid');
                 confirmFeedback.className = 'input-feedback success show';
@@ -979,90 +846,89 @@
 
         confirmPassword.addEventListener('input', validateConfirmPassword);
 
-        // Validación de email
-        const regEmail = document.getElementById('reg_email');
-        const emailFeedback = document.getElementById('email-feedback');
-
-        regEmail.addEventListener('blur', function() {
+        document.getElementById('reg_email').addEventListener('blur', function() {
             const email = this.value;
             const parent = this.parentElement;
-            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-
+            const feedback = document.getElementById('email-feedback');
             if (!email) return;
 
-            if (emailRegex.test(email)) {
+            if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
                 parent.classList.add('valid');
                 parent.classList.remove('invalid');
-                emailFeedback.className = 'input-feedback success show';
-                emailFeedback.textContent = '✓ Email válido';
+                feedback.className = 'input-feedback success show';
+                feedback.textContent = '✓ Email válido';
             } else {
                 parent.classList.add('invalid');
                 parent.classList.remove('valid');
-                emailFeedback.className = 'input-feedback error show';
-                emailFeedback.textContent = '✗ Email inválido';
+                feedback.className = 'input-feedback error show';
+                feedback.textContent = '✗ Email inválido';
             }
         });
 
-        // Validación de celular panameño
         const celular = document.getElementById('celular');
-        const celularFeedback = document.getElementById('celular-feedback');
-
         celular.addEventListener('input', function() {
-            // Permitir solo números y guiones
             this.value = this.value.replace(/[^\d-]/g, '');
         });
 
         celular.addEventListener('blur', function() {
             const phone = this.value;
             const parent = this.parentElement;
-            
+            const feedback = document.getElementById('celular-feedback');
             if (!phone) return;
 
-            // Formato panameño: 8 dígitos (6XXX-XXXX o 2XX-XXXX, etc.)
-            const phoneRegex = /^\d{4}-?\d{4}$/;
-
-            if (phoneRegex.test(phone.replace(/-/g, ''))) {
+            if (/^\d{4}-?\d{4}$/.test(phone.replace(/-/g, ''))) {
                 parent.classList.add('valid');
                 parent.classList.remove('invalid');
-                celularFeedback.className = 'input-feedback success show';
-                celularFeedback.textContent = '✓ Número válido';
+                feedback.className = 'input-feedback success show';
+                feedback.textContent = '✓ Número válido';
             } else {
                 parent.classList.add('invalid');
                 parent.classList.remove('valid');
-                celularFeedback.className = 'input-feedback error show';
-                celularFeedback.textContent = '✗ Formato: XXXX-XXXX';
+                feedback.className = 'input-feedback error show';
+                feedback.textContent = '✗ Formato: XXXX-XXXX';
             }
         });
 
-        // Validación del formulario antes de enviar
-        registerForm.addEventListener('submit', function(e) {
-            const password = regPassword.value;
+        document.getElementById('registerForm').addEventListener('submit', function(e) {
+            const pwd = regPassword.value;
             const confirm = confirmPassword.value;
 
-            // Verificar fortaleza de contraseña
-            const hasLength = password.length >= 8;
-            const hasUppercase = /[A-Z]/.test(password);
-            const hasLowercase = /[a-z]/.test(password);
-            const hasNumber = /[0-9]/.test(password);
-            const hasSpecial = /[@#$%&*!?]/.test(password);
-
-            if (!hasLength || !hasUppercase || !hasLowercase || !hasNumber || !hasSpecial) {
+            if (pwd.length < 8 || !/[A-Z]/.test(pwd) || !/[a-z]/.test(pwd) || 
+                !/[0-9]/.test(pwd) || !/[@#$%&*!?]/.test(pwd)) {
                 e.preventDefault();
                 alert('La contraseña no cumple con todos los requisitos de seguridad.');
                 regPassword.focus();
                 return false;
             }
 
-            // Verificar que las contraseñas coincidan
-            if (password !== confirm) {
+            if (pwd !== confirm) {
                 e.preventDefault();
                 alert('Las contraseñas no coinciden.');
                 confirmPassword.focus();
                 return false;
             }
-
-            return true;
         });
+        
+        <?php if ($tipo_mensaje === 'success' && $form_type === 'register'): ?>
+            // Auto-switch a login después de registro exitoso
+            setTimeout(() => {
+                showLogin();
+                // Limpiar el formulario
+                document.getElementById('registerForm').reset();
+                toggleCampos();
+            }, 2500);
+        <?php endif; ?>
+        
+        <?php if ($tipo_mensaje && $form_type === 'register'): ?>
+            // Ocultar alerta después de 5 segundos
+            setTimeout(() => {
+                const alert = document.getElementById('registerAlert');
+                if (alert) {
+                    alert.style.animation = 'slideOut 0.3s ease';
+                    setTimeout(() => alert.remove(), 300);
+                }
+            }, 5000);
+        <?php endif; ?>
     </script>
 </body>
 </html>
