@@ -108,9 +108,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         $direccion = $_POST['direccion'] ?? null;
                         $password_hash = password_hash($password, PASSWORD_BCRYPT);
                         
-                        $sql = "INSERT INTO clientes (tipo_cliente, nombre, apellido, cedula, razon_social, ruc, 
-                                email, telefono, celular, provincia, direccion, password_hash, fecha_registro) 
-                                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())";
+                        $sql = "INSERT INTO clientes (
+                            tipo_cliente, nombre, apellido, cedula, razon_social, ruc,
+                            email, telefono, celular, provincia, direccion, password_hash,
+                            created_at, updated_at
+                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())";
+
                         
                         $stmt = $db->prepare($sql);
                         $stmt->execute([

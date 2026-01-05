@@ -716,9 +716,9 @@ $primer_nombre = $nombre_parts[0];
         
         <nav class="nav-menu">
             <div class="nav-left">
-                <a href="#" class="nav-item active">Pólizas</a>
-                <a href="#" class="nav-item">Documentos</a>
-                <a href="#" class="nav-item">Contacto</a>
+                <a href="dashboardCliente.php" class="nav-item active">Pólizas</a>
+                <a href="documentos.php" class="nav-item">Documentos</a>
+                <a href="reclamos.php" class="nav-item">Reclamos</a>
                 <a href="perfil.php" class="nav-item">Mi Perfil</a>
             </div>
             <div class="user-info">
@@ -824,10 +824,7 @@ $primer_nombre = $nombre_parts[0];
                             <button class="btn-action btn-outline">Descargar Póliza</button>
                             <button class="btn-action btn-outline">Hacer Pago</button>
                         </div>
-                    </div>
-
-                    <!-- Resto de pólizas aquí... -->
-                    
+                    </div>                  
                 </div>
             </section>
         </main>

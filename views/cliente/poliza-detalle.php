@@ -676,12 +676,10 @@
         
         <nav class="nav-menu">
             <div class="nav-left">
-                <a href="http://localhost/Gestion_de_Polizas/views/cliente/dashboardCliente.php" class="nav-item active">Pólizas</a>
-                <a href="#" class="nav-item">Consultas</a>
-                <a href="#" class="nav-item">Transacciones</a>
-                <a href="#" class="nav-item">Recargas</a>
-                <a href="#" class="nav-item">Solicitudes</a>
-                <a href="http://localhost/Gestion_de_Polizas/views/cliente/perfil.php" class="nav-item">Mi Perfil</a>
+                <a href="dashboardCliente.php" class="nav-item active">Pólizas</a>
+                <a href="documentos.php" class="nav-item">Documentos</a>
+                <a href="reclamos.php" class="nav-item">Contacto</a>
+                <a href="perfil.php" class="nav-item">Mi Perfil</a>
             </div>
             <div class="user-info">
                 <div class="user-name">Hola, JUAN DELGADO</div>
