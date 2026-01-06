@@ -1,7 +1,7 @@
 <?php
 session_start();
 
-// Mostrar errores para debug (quitar en producción)
+// Configuración de errores (solo en desarrollo)
 ini_set('display_errors', 1);
 ini_set('display_startup_errors', 1);
 error_reporting(E_ALL);
@@ -16,122 +16,255 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $db = Database::getInstance()->getConnection();
     
     if ($form_type === 'login') {
-        $email = filter_var($_POST['email'] ?? '', FILTER_SANITIZE_EMAIL);
-        $password = $_POST['password'] ?? '';
-        
-        if (empty($email) || empty($password)) {
-            $mensaje = 'Por favor completa todos los campos';
-            $tipo_mensaje = 'error';
-        } else {
-            try {
-                $stmt = $db->prepare("SELECT id, nombre, apellido, email, password_hash, tipo_cliente FROM clientes WHERE email = ?");
-                $stmt->execute([$email]);
-                $usuario = $stmt->fetch(PDO::FETCH_ASSOC);
-                
-                if ($usuario && password_verify($password, $usuario['password_hash'])) {
-                    $_SESSION['user_id'] = $usuario['id'];
-                    $_SESSION['user_name'] = $usuario['nombre'] . ' ' . $usuario['apellido'];
-                    $_SESSION['user_email'] = $usuario['email'];
-                    $_SESSION['tipo_cliente'] = $usuario['tipo_cliente'];
-                    
-                    // Redirigir al dashboard del cliente
-                    header('Location: ../../views/cliente/dashboardCliente.php');
-                    exit;
-                } else {
-                    $mensaje = 'Email o contraseña incorrectos';
-                    $tipo_mensaje = 'error';
-                }
-            } catch (PDOException $e) {
-                $mensaje = 'Error al iniciar sesión. Intenta de nuevo.';
-                $tipo_mensaje = 'error';
-                error_log($e->getMessage());
-            }
-        }
-        
+        handleLogin($db, $mensaje, $tipo_mensaje);
     } elseif ($form_type === 'register') {
-        $tipo_cliente = $_POST['tipo_cliente'] ?? '';
-        $email = filter_var($_POST['reg_email'] ?? '', FILTER_SANITIZE_EMAIL);
-        $password = $_POST['reg_password'] ?? '';
-        $confirm_password = $_POST['confirm_password'] ?? '';
-        
-        if (empty($tipo_cliente) || empty($email) || empty($password)) {
-            $mensaje = 'Por favor completa todos los campos obligatorios';
-            $tipo_mensaje = 'error';
-        } elseif ($password !== $confirm_password) {
-            $mensaje = 'Las contraseñas no coinciden';
-            $tipo_mensaje = 'error';
-        } elseif (strlen($password) < 8) {
-            $mensaje = 'La contraseña debe tener al menos 8 caracteres';
-            $tipo_mensaje = 'error';
-        } elseif (!preg_match('/[A-Z]/', $password) || !preg_match('/[a-z]/', $password) || 
-                  !preg_match('/[0-9]/', $password) || !preg_match('/[@#$%&*!?]/', $password)) {
-            $mensaje = 'La contraseña debe contener mayúsculas, minúsculas, números y caracteres especiales';
-            $tipo_mensaje = 'error';
-        } else {
-            try {
-                $stmt = $db->prepare("SELECT id FROM clientes WHERE email = ?");
-                $stmt->execute([$email]);
-                
-                if ($stmt->fetch()) {
-                    $mensaje = 'Este email ya está registrado';
-                    $tipo_mensaje = 'error';
-                } else {
-                    $nombre = '';
-                    $apellido = '';
-                    $cedula = null;
-                    $razon_social = null;
-                    $ruc = null;
-                    
-                    if ($tipo_cliente === 'Personal') {
-                        $nombre = $_POST['nombre'] ?? '';
-                        $apellido = $_POST['apellido'] ?? '';
-                        $cedula = $_POST['cedula'] ?? null;
-                        
-                        if (empty($nombre) || empty($apellido)) {
-                            $mensaje = 'Nombre y apellido son obligatorios para clientes personales';
-                            $tipo_mensaje = 'error';
-                        }
-                    } elseif ($tipo_cliente === 'Empresa') {
-                        $razon_social = $_POST['razon_social'] ?? '';
-                        $ruc = $_POST['ruc'] ?? null;
-                        
-                        if (empty($razon_social)) {
-                            $mensaje = 'Razón social es obligatoria para empresas';
-                            $tipo_mensaje = 'error';
-                        }
-                    }
-                    
-                    if (empty($mensaje)) {
-                        $telefono = $_POST['telefono'] ?? null;
-                        $celular = $_POST['celular'] ?? null;
-                        $provincia = $_POST['provincia'] ?? null;
-                        $direccion = $_POST['direccion'] ?? null;
-                        $password_hash = password_hash($password, PASSWORD_BCRYPT);
-                        
-                        $sql = "INSERT INTO clientes (
-                            tipo_cliente, nombre, apellido, cedula, razon_social, ruc,
-                            email, telefono, celular, provincia, direccion, password_hash,
-                            created_at, updated_at
-                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())";
-
-                        
-                        $stmt = $db->prepare($sql);
-                        $stmt->execute([
-                            $tipo_cliente, $nombre, $apellido, $cedula, $razon_social, $ruc,
-                            $email, $telefono, $celular, $provincia, $direccion, $password_hash
-                        ]);
-                        
-                        $mensaje = 'Registro exitoso. Ya puedes iniciar sesión';
-                        $tipo_mensaje = 'success';
-                    }
-                }
-            } catch (PDOException $e) {
-                $mensaje = 'Error al registrar: ' . $e->getMessage();
-                $tipo_mensaje = 'error';
-                error_log($e->getMessage());
-            }
-        }
+        handleRegister($db, $mensaje, $tipo_mensaje);
     }
+}
+
+/**
+ * Maneja el proceso de inicio de sesión
+ */
+function handleLogin($db, &$mensaje, &$tipo_mensaje) {
+    $email = filter_var($_POST['email'] ?? '', FILTER_SANITIZE_EMAIL);
+    $password = $_POST['password'] ?? '';
+    
+    // Validación de campos vacíos
+    if (empty($email) || empty($password)) {
+        $mensaje = 'Por favor completa todos los campos';
+        $tipo_mensaje = 'error';
+        return;
+    }
+    
+    try {
+        // Buscar usuario por email
+        $stmt = $db->prepare("
+            SELECT u.id, u.email, u.password_hash, u.rol_id, u.estado,
+                   c.id as cliente_id, c.nombre, c.apellido, c.tipo_cliente
+            FROM usuarios u
+            LEFT JOIN clientes c ON u.id = c.usuario_id
+            WHERE u.email = ? AND u.rol_id = 2
+        ");
+        $stmt->execute([$email]);
+        $usuario = $stmt->fetch(PDO::FETCH_ASSOC);
+        
+        // Verificar credenciales
+        if (!$usuario) {
+            $mensaje = 'Email o contraseña incorrectos';
+            $tipo_mensaje = 'error';
+            return;
+        }
+        
+        if (!password_verify($password, $usuario['password_hash'])) {
+            $mensaje = 'Email o contraseña incorrectos';
+            $tipo_mensaje = 'error';
+            return;
+        }
+        
+        // Verificar estado del usuario
+        if ($usuario['estado'] !== 'activo') {
+            $mensaje = 'Tu cuenta está inactiva. Contacta al administrador.';
+            $tipo_mensaje = 'error';
+            return;
+        }
+        
+        // Actualizar último acceso
+        $stmt = $db->prepare("UPDATE usuarios SET ultimo_acceso = NOW() WHERE id = ?");
+        $stmt->execute([$usuario['id']]);
+        
+        // Establecer variables de sesión
+        $_SESSION['user_id'] = $usuario['id'];
+        $_SESSION['cliente_id'] = $usuario['cliente_id'];
+        $_SESSION['user_name'] = trim($usuario['nombre'] . ' ' . $usuario['apellido']);
+        $_SESSION['user_email'] = $usuario['email'];
+        $_SESSION['rol_id'] = $usuario['rol_id'];
+        $_SESSION['tipo_cliente'] = $usuario['tipo_cliente'];
+        $_SESSION['login_time'] = time();
+        
+        // Redirigir al dashboard del cliente
+        header('Location: ../../views/cliente/dashboardCliente.php');
+        exit;
+        
+    } catch (PDOException $e) {
+        $mensaje = 'Error al iniciar sesión. Intenta de nuevo.';
+        $tipo_mensaje = 'error';
+        error_log("Error en login: " . $e->getMessage());
+    }
+}
+
+/**
+ * Maneja el proceso de registro
+ */
+function handleRegister($db, &$mensaje, &$tipo_mensaje) {
+    // Obtener datos del formulario
+    $tipo_cliente = $_POST['tipo_cliente'] ?? '';
+    $email = filter_var($_POST['reg_email'] ?? '', FILTER_SANITIZE_EMAIL);
+    $password = $_POST['reg_password'] ?? '';
+    $confirm_password = $_POST['confirm_password'] ?? '';
+    
+    // Validaciones básicas
+    if (empty($tipo_cliente) || empty($email) || empty($password)) {
+        $mensaje = 'Por favor completa todos los campos obligatorios';
+        $tipo_mensaje = 'error';
+        return;
+    }
+    
+    if ($password !== $confirm_password) {
+        $mensaje = 'Las contraseñas no coinciden';
+        $tipo_mensaje = 'error';
+        return;
+    }
+    
+    // Validación de contraseña robusta
+    if (!validatePassword($password, $mensaje)) {
+        $tipo_mensaje = 'error';
+        return;
+    }
+    
+    try {
+        // Verificar si el email ya existe
+        $stmt = $db->prepare("SELECT id FROM usuarios WHERE email = ?");
+        $stmt->execute([$email]);
+        
+        if ($stmt->fetch()) {
+            $mensaje = 'Este email ya está registrado';
+            $tipo_mensaje = 'error';
+            return;
+        }
+        
+        // Validar campos según tipo de cliente
+        $clienteData = validateClientData($tipo_cliente, $mensaje);
+        if ($clienteData === false) {
+            $tipo_mensaje = 'error';
+            return;
+        }
+        
+        // Iniciar transacción
+        $db->beginTransaction();
+        
+        try {
+            // Crear usuario
+            $password_hash = password_hash($password, PASSWORD_BCRYPT);
+            $stmt = $db->prepare("
+                INSERT INTO usuarios (email, password_hash, rol_id, estado, created_at, updated_at)
+                VALUES (?, ?, 2, 'activo', NOW(), NOW())
+            ");
+            $stmt->execute([$email, $password_hash]);
+            $usuario_id = $db->lastInsertId();
+            
+            // Crear cliente
+            $sql = "INSERT INTO clientes (
+                usuario_id, tipo_cliente, nombre, apellido, cedula, razon_social, ruc,
+                telefono, celular, provincia, direccion, fecha_registro, created_at, updated_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW(), NOW())";
+            
+            $stmt = $db->prepare($sql);
+            $stmt->execute([
+                $usuario_id,
+                $clienteData['tipo_cliente'],
+                $clienteData['nombre'],
+                $clienteData['apellido'],
+                $clienteData['cedula'],
+                $clienteData['razon_social'],
+                $clienteData['ruc'],
+                $clienteData['telefono'],
+                $clienteData['celular'],
+                $clienteData['provincia'],
+                $clienteData['direccion']
+            ]);
+            
+            // Confirmar transacción
+            $db->commit();
+            
+            $mensaje = 'Registro exitoso. Ya puedes iniciar sesión';
+            $tipo_mensaje = 'success';
+            
+        } catch (PDOException $e) {
+            $db->rollBack();
+            throw $e;
+        }
+        
+    } catch (PDOException $e) {
+        $mensaje = 'Error al registrar. Por favor intenta de nuevo.';
+        $tipo_mensaje = 'error';
+        error_log("Error en registro: " . $e->getMessage());
+    }
+}
+
+/**
+ * Valida la fortaleza de la contraseña
+ */
+function validatePassword($password, &$mensaje) {
+    if (strlen($password) < 8) {
+        $mensaje = 'La contraseña debe tener al menos 8 caracteres';
+        return false;
+    }
+    
+    if (!preg_match('/[A-Z]/', $password)) {
+        $mensaje = 'La contraseña debe contener al menos una letra mayúscula';
+        return false;
+    }
+    
+    if (!preg_match('/[a-z]/', $password)) {
+        $mensaje = 'La contraseña debe contener al menos una letra minúscula';
+        return false;
+    }
+    
+    if (!preg_match('/[0-9]/', $password)) {
+        $mensaje = 'La contraseña debe contener al menos un número';
+        return false;
+    }
+    
+    if (!preg_match('/[@#$%&*!?]/', $password)) {
+        $mensaje = 'La contraseña debe contener al menos un caracter especial (@#$%&*!?)';
+        return false;
+    }
+    
+    return true;
+}
+
+/**
+ * Valida y obtiene los datos del cliente según su tipo
+ */
+function validateClientData($tipo_cliente, &$mensaje) {
+    $data = [
+        'tipo_cliente' => $tipo_cliente,
+        'nombre' => '',
+        'apellido' => '',
+        'cedula' => null,
+        'razon_social' => null,
+        'ruc' => null,
+        'telefono' => $_POST['telefono'] ?? null,
+        'celular' => $_POST['celular'] ?? null,
+        'provincia' => $_POST['provincia'] ?? null,
+        'direccion' => $_POST['direccion'] ?? null
+    ];
+    
+    if ($tipo_cliente === 'Personal') {
+        $data['nombre'] = trim($_POST['nombre'] ?? '');
+        $data['apellido'] = trim($_POST['apellido'] ?? '');
+        $data['cedula'] = $_POST['cedula'] ?? null;
+        
+        if (empty($data['nombre']) || empty($data['apellido'])) {
+            $mensaje = 'Nombre y apellido son obligatorios para clientes personales';
+            return false;
+        }
+        
+    } elseif ($tipo_cliente === 'Empresa') {
+        $data['razon_social'] = trim($_POST['razon_social'] ?? '');
+        $data['ruc'] = $_POST['ruc'] ?? null;
+        
+        if (empty($data['razon_social'])) {
+            $mensaje = 'Razón social es obligatoria para empresas';
+            return false;
+        }
+        
+    } else {
+        $mensaje = 'Tipo de cliente no válido';
+        return false;
+    }
+    
+    return $data;
 }
 ?>
 <!DOCTYPE html>

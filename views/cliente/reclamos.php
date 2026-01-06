@@ -207,7 +207,7 @@ $primer_nombre = $nombre_parts[0];
         }
 
         .btn-new-claim {
-            background: linear-gradient(135deg, #0d5ba8 0%, #1976d2 100%);
+            background: #1976d2;
             color: white;
             border: none;
             padding: 15px 35px;
@@ -216,15 +216,193 @@ $primer_nombre = $nombre_parts[0];
             font-weight: 600;
             cursor: pointer;
             transition: all 0.3s ease;
-            box-shadow: 0 4px 15px rgba(25,118,210,0.3);
             display: flex;
             align-items: center;
             gap: 10px;
         }
 
         .btn-new-claim:hover {
-            transform: translateY(-3px);
-            box-shadow: 0 6px 20px rgba(25,118,210,0.4);
+            background: #0d5ba8;
+            transform: translateY(-2px);
+        }
+
+        /* Modal */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            background-color: rgba(0,0,0,0.5);
+            animation: fadeIn 0.3s;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        .modal-content {
+            background-color: #fefefe;
+            margin: 2% auto;
+            padding: 0;
+            border-radius: 15px;
+            width: 90%;
+            max-width: 800px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+            animation: slideDown 0.3s;
+        }
+
+        @keyframes slideDown {
+            from {
+                transform: translateY(-50px);
+                opacity: 0;
+            }
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+
+        .modal-header {
+            background: linear-gradient(135deg, #004B93 0%, #0066B3 100%);
+            color: white;
+            padding: 25px 30px;
+            border-radius: 15px 15px 0 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .modal-header h2 {
+            margin: 0;
+            font-size: 24px;
+        }
+
+        .close {
+            color: white;
+            font-size: 32px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s;
+            line-height: 1;
+        }
+
+        .close:hover {
+            transform: rotate(90deg);
+        }
+
+        .modal-body {
+            padding: 30px;
+            max-height: 70vh;
+            overflow-y: auto;
+        }
+
+        .form-group {
+            margin-bottom: 25px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            color: #333;
+            font-weight: 600;
+            font-size: 14px;
+        }
+
+        .form-group input,
+        .form-group select,
+        .form-group textarea {
+            width: 100%;
+            padding: 12px 15px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 15px;
+            transition: all 0.3s;
+            font-family: inherit;
+        }
+
+        .form-group input:focus,
+        .form-group select:focus,
+        .form-group textarea:focus {
+            outline: none;
+            border-color: #1976d2;
+            box-shadow: 0 0 0 3px rgba(25,118,210,0.1);
+        }
+
+        .form-group textarea {
+            resize: vertical;
+            min-height: 100px;
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+
+        .file-upload {
+            border: 2px dashed #e0e0e0;
+            border-radius: 8px;
+            padding: 30px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .file-upload:hover {
+            border-color: #1976d2;
+            background: #f5f9ff;
+        }
+
+        .file-upload i {
+            font-size: 48px;
+            color: #1976d2;
+            margin-bottom: 15px;
+        }
+
+        .file-upload input {
+            display: none;
+        }
+
+        .modal-footer {
+            padding: 20px 30px;
+            border-top: 1px solid #e0e0e0;
+            display: flex;
+            justify-content: flex-end;
+            gap: 15px;
+        }
+
+        .btn-submit,
+        .btn-cancel {
+            padding: 12px 30px;
+            border: none;
+            border-radius: 8px;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .btn-submit {
+            background: #1976d2;
+            color: white;
+        }
+
+        .btn-submit:hover {
+            background: #0d5ba8;
+        }
+
+        .btn-cancel {
+            background: #f5f5f5;
+            color: #666;
+        }
+
+        .btn-cancel:hover {
+            background: #e0e0e0;
         }
 
         .quick-actions {
@@ -540,6 +718,15 @@ $primer_nombre = $nombre_parts[0];
                 grid-template-columns: 1fr;
             }
 
+            .form-row {
+                grid-template-columns: 1fr;
+            }
+
+            .modal-content {
+                width: 95%;
+                margin: 5% auto;
+            }
+
             .claim-body {
                 grid-template-columns: 1fr;
             }
@@ -607,13 +794,99 @@ $primer_nombre = $nombre_parts[0];
     <div class="container">
         <div class="page-header">
             <div class="page-title-section">
-                <h1 class="page-title">Mis Reclamaciones</h1>
+                <h1 class="page-title">Mis Reclamos</h1>
                 <p class="page-subtitle">Gestiona y da seguimiento a tus reclamaciones de manera fácil</p>
             </div>
-            <button class="btn-new-claim" onclick="newClaim()">
+            <button class="btn-new-claim" onclick="openModal()">
                 <i class="fas fa-plus"></i>
-                Nueva Reclamación
+                Nuevo Reclamo
             </button>
+        </div>
+
+        <!-- Modal de Nueva Reclamación -->
+        <div id="claimModal" class="modal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2><i class="fas fa-file-medical"></i> Nuevo Reclamo</h2>
+                    <span class="close" onclick="closeModal()">&times;</span>
+                </div>
+                <div class="modal-body">
+                    <form id="claimForm" onsubmit="submitClaim(event)">
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="poliza">Póliza <span style="color: red;">*</span></label>
+                                <select id="poliza" name="poliza" required>
+                                    <option value="">Seleccione una póliza</option>
+                                    <option value="AUTO-2024-00456">AUTO-2024-00456 - Seguro de Auto</option>
+                                    <option value="VIDA-2024-00789">VIDA-2024-00789 - Seguro de Vida</option>
+                                    <option value="HOGAR-2024-00321">HOGAR-2024-00321 - Seguro de Hogar</option>
+                                </select>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="tipo_siniestro">Tipo de Siniestro <span style="color: red;">*</span></label>
+                                <select id="tipo_siniestro" name="tipo_siniestro" required>
+                                    <option value="">Seleccione el tipo</option>
+                                    <option value="Accidente de Tránsito">Accidente de Tránsito</option>
+                                    <option value="Robo Total">Robo Total</option>
+                                    <option value="Robo Parcial">Robo Parcial</option>
+                                    <option value="Daños por Colisión">Daños por Colisión</option>
+                                    <option value="Daños por Incendio">Daños por Incendio</option>
+                                    <option value="Daños por Inundación">Daños por Inundación</option>
+                                    <option value="Cristales">Cristales</option>
+                                    <option value="Otro">Otro</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="fecha_siniestro">Fecha del Siniestro <span style="color: red;">*</span></label>
+                                <input type="date" id="fecha_siniestro" name="fecha_siniestro" required max="<?php echo date('Y-m-d'); ?>">
+                            </div>
+
+                            <div class="form-group">
+                                <label for="monto_reclamado">Monto Estimado <span style="color: red;">*</span></label>
+                                <input type="number" id="monto_reclamado" name="monto_reclamado" placeholder="$0.00" step="0.01" required>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="lugar_siniestro">Lugar del Siniestro <span style="color: red;">*</span></label>
+                            <input type="text" id="lugar_siniestro" name="lugar_siniestro" placeholder="Ej: Av. Balboa, Ciudad de Panamá" required>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="descripcion">Descripción Detallada <span style="color: red;">*</span></label>
+                            <textarea id="descripcion" name="descripcion" placeholder="Describa lo sucedido con el mayor detalle posible..." required></textarea>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="testigos">¿Hubo Testigos?</label>
+                            <input type="text" id="testigos" name="testigos" placeholder="Nombres y teléfonos de testigos (opcional)">
+                        </div>
+
+                        <div class="form-group">
+                            <label>Documentos Adjuntos</label>
+                            <div class="file-upload" onclick="document.getElementById('fileInput').click()">
+                                <i class="fas fa-cloud-upload-alt"></i>
+                                <p><strong>Haga clic para subir archivos</strong></p>
+                                <p style="font-size: 13px; color: #999; margin-top: 10px;">
+                                    Fotos del siniestro, reporte policial, facturas, etc.<br>
+                                    (Máximo 10MB por archivo)
+                                </p>
+                                <input type="file" id="fileInput" multiple accept="image/*,.pdf,.doc,.docx">
+                            </div>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn-cancel" onclick="closeModal()">Cancelar</button>
+                    <button type="submit" form="claimForm" class="btn-submit">
+                        <i class="fas fa-paper-plane"></i> Enviar Reclamo
+                    </button>
+                </div>
+            </div>
         </div>
 
         <div class="quick-actions">
@@ -647,7 +920,7 @@ $primer_nombre = $nombre_parts[0];
 
         <div class="section-title">
             <i class="fas fa-clipboard-list"></i>
-            Reclamaciones Activas
+            Reclamos Activos
         </div>
 
         <div class="claims-list">
@@ -818,10 +1091,56 @@ $primer_nombre = $nombre_parts[0];
     </footer>
 
     <script>
-        function newClaim() {
-            alert('Redirigiendo al formulario de nueva reclamación...');
-            // Aquí iría la lógica para abrir el formulario de nueva reclamación
+        // Abrir modal
+        function openModal() {
+            document.getElementById('claimModal').style.display = 'block';
+            document.body.style.overflow = 'hidden';
         }
+
+        // Cerrar modal
+        function closeModal() {
+            document.getElementById('claimModal').style.display = 'none';
+            document.body.style.overflow = 'auto';
+            document.getElementById('claimForm').reset();
+        }
+
+        // Cerrar modal al hacer clic fuera de él
+        window.onclick = function(event) {
+            const modal = document.getElementById('claimModal');
+            if (event.target == modal) {
+                closeModal();
+            }
+        }
+
+        // Enviar formulario
+        function submitClaim(event) {
+            event.preventDefault();
+            
+            const formData = new FormData(event.target);
+            
+            // Aquí iría la lógica para enviar al servidor
+            console.log('Datos del formulario:');
+            for (let [key, value] of formData.entries()) {
+                console.log(key + ': ' + value);
+            }
+            
+            // Simulación de envío exitoso
+            alert('✅ Reclamación enviada exitosamente!\n\nNúmero de reclamación: RECL-2025-' + Math.floor(Math.random() * 1000).toString().padStart(5, '0') + '\n\nRecibirás una notificación en tu correo con los detalles.');
+            
+            closeModal();
+        }
+
+        // Mostrar archivos seleccionados
+        document.getElementById('fileInput').addEventListener('change', function(e) {
+            const files = e.target.files;
+            if (files.length > 0) {
+                let fileNames = '';
+                for (let i = 0; i < files.length; i++) {
+                    fileNames += files[i].name + '\n';
+                }
+                alert('Archivos seleccionados:\n' + fileNames);
+            }
+        });
 
         function quickAction(action) {
             const actions = {

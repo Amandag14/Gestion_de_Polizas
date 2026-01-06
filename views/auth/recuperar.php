@@ -15,7 +15,7 @@ if (!defined('APP_URL')) {
 define('DB_HOST', 'localhost');
 define('DB_USER', 'root');
 define('DB_PASS', '');
-define('DB_NAME', 'henriquez_seguros'); // CAMBIA ESTO por el nombre de tu base de datos
+define('DB_NAME', 'portalseguros'); 
 
 // Importar PHPMailer
 use PHPMailer\PHPMailer\PHPMailer;

@@ -347,7 +347,7 @@ $primer_nombre = $nombre_parts[0];
 
         .stat-card {
             background: white;
-            padding: 1.5rem;
+            padding: 1.75rem 1.5rem;
             border-radius: 8px;
             box-shadow: 0 1px 3px rgba(0,0,0,0.08);
             border-left: 4px solid #3b82f6;
@@ -355,7 +355,8 @@ $primer_nombre = $nombre_parts[0];
             display: flex;
             align-items: center;
             justify-content: space-between;
-            gap: 1rem;
+            gap: 1.25rem;
+            overflow: hidden;
         }
 
         .stat-card.warning {
@@ -370,28 +371,33 @@ $primer_nombre = $nombre_parts[0];
             flex: 1;
             display: flex;
             flex-direction: column;
-            gap: 0.3rem;
+            gap: 0.4rem;
+            min-width: 0;
         }
 
         .stat-label {
-            font-size: 0.7rem;
+            font-size: 0.75rem;
             color: #94a3b8;
             text-transform: uppercase;
             letter-spacing: 0.05em;
             font-weight: 500;
+            line-height: 1.3;
         }
 
         .stat-subtitle {
-            font-size: 0.75rem;
+            font-size: 0.8rem;
             color: #94a3b8;
+            line-height: 1.4;
         }
 
         .stat-value {
-            font-size: 2.5rem;
+            font-size: clamp(1.5rem, 3.5vw, 2rem);
             font-weight: 700;
             color: #1e293b;
             text-align: right;
             flex-shrink: 0;
+            line-height: 1;
+            white-space: nowrap;
         }
 
         .policies-section {
@@ -553,6 +559,8 @@ $primer_nombre = $nombre_parts[0];
             font-weight: 600;
             border: none;
             transition: all 0.3s;
+            text-decoration: none;
+            display: inline-block;
         }
 
         .btn-primary {
@@ -579,12 +587,20 @@ $primer_nombre = $nombre_parts[0];
                 gap: 1rem;
             }
             
+            .stat-card {
+                padding: 1.25rem 1rem;
+            }
+            
             .stat-label {
+                font-size: 0.65rem;
+            }
+            
+            .stat-subtitle {
                 font-size: 0.7rem;
             }
             
             .stat-value {
-                font-size: 1.5rem;
+                font-size: clamp(1.5rem, 3.5vw, 2rem);
             }
         }
 
@@ -611,11 +627,15 @@ $primer_nombre = $nombre_parts[0];
             }
             
             .stat-label {
+                font-size: 0.6rem;
+            }
+            
+            .stat-subtitle {
                 font-size: 0.65rem;
             }
             
             .stat-value {
-                font-size: 1.25rem;
+                font-size: clamp(1.25rem, 3vw, 1.75rem);
             }
         }
 
@@ -808,7 +828,7 @@ $primer_nombre = $nombre_parts[0];
                             </div>
                             <div class="detail-group">
                                 <span class="label">Compañía</span>
-                                <span class="value">Aseguradora Mundial</span>
+                                <span class="value">ASSA Seguros</span>
                             </div>
                             <div class="detail-group">
                                 <span class="label">Suma Asegurada</span>
@@ -820,9 +840,9 @@ $primer_nombre = $nombre_parts[0];
                             </div>
                         </div>
                         <div class="details-actions">
-                            <button class="btn-action btn-primary">Ver Detalles</button>
-                            <button class="btn-action btn-outline">Descargar Póliza</button>
-                            <button class="btn-action btn-outline">Hacer Pago</button>
+                            <a href="poliza-detalle.php" class="btn-action btn-primary">Ver Detalles</a>
+                            <button class="btn-action btn-outline" onclick="descargarPoliza('VID-2024-001234')">Descargar Póliza</button>
+                            <button class="btn-action btn-outline" onclick="realizarPago('VID-2024-001234')">Hacer Pago</button>
                         </div>
                     </div>                  
                 </div>
@@ -841,27 +861,27 @@ $primer_nombre = $nombre_parts[0];
             </div>
             <div class="sidebar-content" id="sidebarContent">
                 <div class="shortcuts-grid">
-                    <div class="shortcut-item">
+                    <div class="shortcut-item" onclick="window.location.href='reclamos.php'">
                         <div class="shortcut-icon">
                             <i class="fas fa-exchange-alt"></i>
                         </div>
                         <span class="shortcut-label">Reportar Siniestro</span>
                     </div>
-                    <div class="shortcut-item">
+                    <div class="shortcut-item" onclick="window.location.href='pagos.php'">
                         <div class="shortcut-icon">
                             <i class="fas fa-star"></i>
                         </div>
                         <span class="shortcut-label">Realizar un Pago</span>
                     </div>
-                    <div class="shortcut-item">
+                    <div class="shortcut-item" onclick="window.location.href='contacto.php'">
                         <div class="shortcut-icon">
                             <i class="fas fa-users"></i>
                         </div>
                         <span class="shortcut-label">Contactar a mi corredor</span>
                     </div>
-                    <div class="shortcut-item">
+                    <div class="shortcut-item" onclick="window.location.href='ayuda.php'">
                         <div class="shortcut-icon">
-                            <i class="fas fa-tint"></i>
+                            <i class="fas fa-question-circle"></i>
                         </div>
                         <span class="shortcut-label">Centro de Ayuda / FAQs</span>
                     </div>
@@ -921,6 +941,20 @@ $primer_nombre = $nombre_parts[0];
             } else {
                 details.style.display = 'block';
             }
+        }
+
+        function descargarPoliza(polizaId) {
+            event.stopPropagation();
+            alert('Descargando póliza ' + polizaId + '...');
+            // Aquí iría la lógica real de descarga
+            console.log('Descargar póliza:', polizaId);
+        }
+
+        function realizarPago(polizaId) {
+            event.stopPropagation();
+            alert('Redirigiendo a realizar pago de póliza ' + polizaId + '...');
+            // Aquí iría la redirección real
+            console.log('Realizar pago:', polizaId);
         }
     </script>
 </body>
