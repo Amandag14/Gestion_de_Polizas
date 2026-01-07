@@ -1,9 +1,4 @@
 <?php
-/**
- * Archivo: views/cliente/perfil.php
- * Vista de perfil del cliente - VERSIÓN CORREGIDA
- */
-
 session_start();
 
 // Verificar autenticación y rol
@@ -169,48 +164,365 @@ try {
     <title>Mi Perfil - Henríquez y Asociados</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
-        /* Copiar exactamente todos los estilos del documento 4 */
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif; background: #f5f7fa; color: #2c3e50; min-height: 100vh; display: flex; flex-direction: column; }
-        .header { background: linear-gradient(135deg, #004B93 0%, #0066B3 100%); color: white; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
-        .header-top { display: flex; justify-content: space-between; align-items: center; padding: 0.75rem 2rem; border-bottom: 1px solid rgba(255,255,255,0.1); }
-        .logo { display: flex; align-items: center; gap: 1rem; font-size: 1.3rem; font-weight: 700; }
-        .logo-badge { background: white; color: #004B93; padding: 0.15rem 0.5rem; border-radius: 4px; font-size: 0.7rem; font-weight: 700; }
-        .header-buttons { display: flex; gap: 0.5rem; }
-        .header-btn { display: flex; flex-direction: column; align-items: center; gap: 0.3rem; padding: 0.5rem 0.8rem; background: transparent; border: none; color: white; cursor: pointer; transition: all 0.3s; text-decoration: none; border-radius: 6px; min-width: 70px; }
-        .header-btn:hover { background: rgba(255,255,255,0.15); }
-        .header-btn i { font-size: 1.2rem; }
-        .header-btn span { font-size: 0.7rem; font-weight: 500; }
-        .nav-menu { display: flex; justify-content: space-between; align-items: center; padding: 0 2rem; }
-        .nav-left { display: flex; }
-        .nav-item { padding: 1rem 1.5rem; color: rgba(255,255,255,0.9); text-decoration: none; font-size: 0.9rem; font-weight: 500; border-bottom: 3px solid transparent; transition: all 0.3s; }
-        .nav-item:hover { background: rgba(255,255,255,0.1); border-bottom-color: rgba(255,255,255,0.5); }
-        .nav-item.active { border-bottom-color: white; background: rgba(255,255,255,0.1); }
-        .user-info { text-align: right; padding: 0.5rem 0; }
-        .user-name { font-size: 0.85rem; font-weight: 600; }
-        .user-time { font-size: 0.7rem; opacity: 0.8; }
-        .container { max-width: 100%; width: 100%; margin: 0; padding: 2rem; flex: 1; }
-        .back-button { display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.5rem 1rem; background: white; border: 1px solid #e2e8f0; border-radius: 6px; color: #475569; text-decoration: none; margin-bottom: 1.5rem; transition: all 0.3s; }
-        .back-button:hover { background: #f8fafc; }
-        .page-header { background: white; padding: 2rem; border-radius: 12px; margin-bottom: 2rem; box-shadow: 0 2px 8px rgba(0,0,0,0.08); display: flex; align-items: center; gap: 2rem; }
-        .profile-avatar-large { width: 100px; height: 100px; border-radius: 50%; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); display: flex; align-items: center; justify-content: center; color: white; font-size: 2.5rem; font-weight: 700; box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3); }
-        .profile-header-info h1 { font-size: 2rem; color: #1e293b; margin-bottom: 0.5rem; }
-        .profile-meta { display: flex; gap: 2rem; color: #64748b; font-size: 0.95rem; }
-        .profile-meta-item { display: flex; align-items: center; gap: 0.5rem; }
-        .card { background: white; border-radius: 12px; padding: 2rem; box-shadow: 0 2px 8px rgba(0,0,0,0.08); margin-bottom: 2rem; }
-        .card-title { font-size: 1.25rem; font-weight: 600; color: #1e293b; margin-bottom: 1.5rem; }
-        .stats-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; }
-        .stat-box { text-align: center; padding: 1.5rem; background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%); border-radius: 10px; border: 1px solid #e2e8f0; }
-        .stat-box-value { font-size: 2rem; font-weight: 700; color: #004B93; margin-bottom: 0.25rem; }
-        .stat-box-label { font-size: 0.85rem; color: #64748b; }
-        .info-display { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; }
-        .info-item { display: flex; flex-direction: column; gap: 0.25rem; }
-        .info-item.full-width { grid-column: 1 / -1; }
-        .info-label { font-size: 0.85rem; color: #94a3b8; font-weight: 500; }
-        .info-value { font-size: 1rem; color: #1e293b; font-weight: 500; }
-        .footer { background: linear-gradient(135deg, #004B93 0%, #0066B3 100%); color: white; padding: 1.5rem 2rem; margin-top: auto; text-align: center; }
-        .hidden { display: none !important; }
-        @media (max-width: 768px) { .stats-grid { grid-template-columns: 1fr; } .info-display { grid-template-columns: 1fr; } }
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: #f5f7fa;
+            color: #2c3e50;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Header */
+        .header {
+            background: linear-gradient(135deg, #004B93 0%, #0066B3 100%);
+            color: white;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .header-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.75rem 2rem;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            font-size: 1.3rem;
+            font-weight: 700;
+        }
+
+        .logo-badge {
+            background: white;
+            color: #004B93;
+            padding: 0.15rem 0.5rem;
+            border-radius: 4px;
+            font-size: 0.7rem;
+            font-weight: 700;
+        }
+
+        .header-buttons {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .header-btn {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 0.3rem;
+            padding: 0.5rem 0.8rem;
+            background: transparent;
+            border: none;
+            color: white;
+            cursor: pointer;
+            transition: all 0.3s;
+            text-decoration: none;
+            border-radius: 6px;
+            min-width: 70px;
+        }
+
+        .header-btn:hover {
+            background: rgba(255,255,255,0.15);
+        }
+
+        .header-btn i {
+            font-size: 1.2rem;
+        }
+
+        .header-btn span {
+            font-size: 0.7rem;
+            font-weight: 500;
+        }
+
+        .nav-menu {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 2rem;
+        }
+
+        .nav-left {
+            display: flex;
+        }
+
+        .nav-item {
+            padding: 1rem 1.5rem;
+            color: rgba(255,255,255,0.9);
+            text-decoration: none;
+            font-size: 0.9rem;
+            font-weight: 500;
+            border-bottom: 3px solid transparent;
+            transition: all 0.3s;
+        }
+
+        .nav-item:hover {
+            background: rgba(255,255,255,0.1);
+            border-bottom-color: rgba(255,255,255,0.5);
+        }
+
+        .nav-item.active {
+            border-bottom-color: white;
+            background: rgba(255,255,255,0.1);
+        }
+
+        .user-info {
+            text-align: right;
+            padding: 0.5rem 0;
+        }
+
+        .user-name {
+            font-size: 0.85rem;
+            font-weight: 600;
+        }
+
+        .user-time {
+            font-size: 0.7rem;
+            opacity: 0.8;
+        }
+
+        /* Container */
+        .container {
+            max-width: 100%;
+            width: 100%;
+            margin: 0;
+            padding: 2rem;
+            flex: 1;
+        }
+
+        .back-button {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.5rem 1rem;
+            background: white;
+            border: 1px solid #e2e8f0;
+            border-radius: 6px;
+            color: #475569;
+            text-decoration: none;
+            margin-bottom: 1.5rem;
+            transition: all 0.3s;
+        }
+
+        .back-button:hover {
+            background: #f8fafc;
+        }
+
+        .page-header {
+            background: white;
+            padding: 2rem;
+            border-radius: 12px;
+            margin-bottom: 2rem;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            display: flex;
+            align-items: center;
+            gap: 2rem;
+        }
+
+        .profile-avatar-large {
+            width: 100px;
+            height: 100px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 2.5rem;
+            font-weight: 700;
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+        }
+
+        .profile-header-info h1 {
+            font-size: 2rem;
+            color: #1e293b;
+            margin-bottom: 0.5rem;
+        }
+
+        .profile-meta {
+            display: flex;
+            gap: 2rem;
+            color: #64748b;
+            font-size: 0.95rem;
+        }
+
+        .profile-meta-item {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .card {
+            background: white;
+            border-radius: 12px;
+            padding: 2rem;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            margin-bottom: 2rem;
+        }
+
+        .card-title {
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: #1e293b;
+            margin-bottom: 1.5rem;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 1rem;
+        }
+
+        .stat-box {
+            text-align: center;
+            padding: 1.5rem;
+            background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+            border-radius: 10px;
+            border: 1px solid #e2e8f0;
+        }
+
+        .stat-box-value {
+            font-size: 2rem;
+            font-weight: 700;
+            color: #004B93;
+            margin-bottom: 0.25rem;
+        }
+
+        .stat-box-label {
+            font-size: 0.85rem;
+            color: #64748b;
+        }
+
+        .info-display {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1.5rem;
+        }
+
+        .info-item {
+            display: flex;
+            flex-direction: column;
+            gap: 0.25rem;
+        }
+
+        .info-item.full-width {
+            grid-column: 1 / -1;
+        }
+
+        .info-label {
+            font-size: 0.85rem;
+            color: #94a3b8;
+            font-weight: 500;
+        }
+
+        .info-value {
+            font-size: 1rem;
+            color: #1e293b;
+            font-weight: 500;
+        }
+
+        /* Footer */
+        .footer {
+            background: linear-gradient(135deg, #004B93 0%, #0066B3 100%);
+            color: white;
+            padding: 1.5rem 2rem;
+            margin-top: auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .footer-left {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            font-size: 0.85rem;
+        }
+
+        .footer-links {
+            display: flex;
+            gap: 2rem;
+        }
+
+        .footer-link {
+            color: white;
+            text-decoration: none;
+            font-size: 0.85rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            transition: opacity 0.3s;
+        }
+
+        .footer-link:hover {
+            opacity: 0.8;
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .header-top {
+                flex-direction: column;
+                gap: 1rem;
+                padding: 1rem;
+            }
+
+            .nav-menu {
+                flex-wrap: wrap;
+                padding: 0 1rem;
+            }
+
+            .nav-item {
+                padding: 0.75rem 1rem;
+                font-size: 0.85rem;
+            }
+
+            .container {
+                padding: 1rem;
+            }
+
+            .page-header {
+                flex-direction: column;
+                text-align: center;
+            }
+
+            .profile-meta {
+                flex-direction: column;
+                gap: 0.5rem;
+            }
+
+            .stats-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .info-display {
+                grid-template-columns: 1fr;
+            }
+
+            .footer {
+                flex-direction: column;
+                gap: 1rem;
+                text-align: center;
+            }
+
+            .footer-links {
+                flex-direction: column;
+                gap: 0.75rem;
+            }
+        }
     </style>
 </head>
 <body>
@@ -252,7 +564,10 @@ try {
     </header>
 
     <div class="container">
-        <a href="dashboardCliente.php" class="back-button">← Volver al Inicio</a>
+        <a href="dashboardCliente.php" class="back-button">
+            <i class="fas fa-arrow-left"></i>
+            Volver al Inicio
+        </a>
 
         <div class="page-header">
             <div class="profile-avatar-large"><?php echo $iniciales; ?></div>
@@ -260,15 +575,15 @@ try {
                 <h1><?php echo htmlspecialchars($nombre_display); ?></h1>
                 <div class="profile-meta">
                     <div class="profile-meta-item">
-                        <span>📧</span>
+                        <i class="fas fa-envelope"></i>
                         <span><?php echo htmlspecialchars($cliente['email']); ?></span>
                     </div>
                     <div class="profile-meta-item">
-                        <span>📱</span>
+                        <i class="fas fa-mobile-alt"></i>
                         <span><?php echo htmlspecialchars($cliente['celular'] ?? 'No registrado'); ?></span>
                     </div>
                     <div class="profile-meta-item">
-                        <span>📅</span>
+                        <i class="fas fa-calendar-alt"></i>
                         <span>Cliente desde <?php echo date('M Y', strtotime($cliente['created_at'])); ?></span>
                     </div>
                 </div>
@@ -276,7 +591,7 @@ try {
         </div>
 
         <div class="card">
-            <h3 class="card-title">Resumen de Cuenta</h3>
+            <h3 class="card-title">📊 Resumen de Cuenta</h3>
             <div class="stats-grid">
                 <div class="stat-box">
                     <div class="stat-box-value"><?php echo $stats['total_polizas']; ?></div>
@@ -333,7 +648,23 @@ try {
     </div>
 
     <footer class="footer">
-        <span>Copyright © <?php echo date('Y'); ?> Henríquez & Asociados. Todos los derechos reservados.</span>
+        <div class="footer-left">
+            <span>Copyright © <?php echo date('Y'); ?> Henríquez & Asociados. Todos los derechos reservados.</span>
+        </div>
+        <div class="footer-links">
+            <a href="#" class="footer-link">
+                <i class="fas fa-shield-alt"></i>
+                Seguridad
+            </a>
+            <a href="#" class="footer-link">
+                <i class="fas fa-user-secret"></i>
+                Privacidad
+            </a>
+            <a href="../auth/logout.php" class="footer-link">
+                <i class="fas fa-sign-out-alt"></i>
+                Salir
+            </a>
+        </div>
     </footer>
 </body>
 </html>

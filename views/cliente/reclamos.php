@@ -790,6 +790,7 @@ $primer_nombre = $nombre_parts[0];
             </div>
         </nav>
     </header>
+    
 
     <div class="container">
         <div class="page-header">

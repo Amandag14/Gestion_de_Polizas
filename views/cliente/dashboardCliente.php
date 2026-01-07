@@ -2,10 +2,11 @@
 session_start();
 
 // Verificar que el usuario esté autenticado
-if (!isset($_SESSION['user_id'])) {
+if (!isset($_SESSION['user_id']) || !isset($_SESSION['rol_id']) || $_SESSION['rol_id'] != 2) {
     header('Location: ../auth/login.php');
-    exit;
+    exit();
 }
+require_once __DIR__ . '/../../config/database.php';
 
 // Obtener datos del usuario
 $user_name = $_SESSION['user_name'] ?? 'Usuario';
@@ -13,21 +14,24 @@ $user_email = $_SESSION['user_email'] ?? '';
 $ultimo_ingreso = $_SESSION['ultimo_ingreso'] ?? null;
 
 // Formatear el último ingreso
-$ultimo_ingreso_texto = 'Primer ingreso';
 if ($ultimo_ingreso) {
     $fecha_ultimo = new DateTime($ultimo_ingreso);
     $fecha_actual = new DateTime();
-    $diferencia = $fecha_actual->diff($fecha_ultimo);
+    $tiempo_transcurrido = $fecha_actual->diff($fecha_ultimo);
     
-    if ($diferencia->days > 0) {
-        $ultimo_ingreso_texto = 'Último ingreso hace ' . $diferencia->days . ' día' . ($diferencia->days > 1 ? 's' : '');
-    } elseif ($diferencia->h > 0) {
-        $ultimo_ingreso_texto = 'Último ingreso hace ' . $diferencia->h . ' hora' . ($diferencia->h > 1 ? 's' : '');
-    } elseif ($diferencia->i > 0) {
-        $ultimo_ingreso_texto = 'Último ingreso hace ' . $diferencia->i . ' minuto' . ($diferencia->i > 1 ? 's' : '');
+    if ($tiempo_transcurrido->i < 1 && $tiempo_transcurrido->h == 0 && $tiempo_transcurrido->d == 0) {
+        $ultimo_ingreso_texto = "Hace unos segundos";
+    } elseif ($tiempo_transcurrido->h == 0 && $tiempo_transcurrido->d == 0) {
+        $ultimo_ingreso_texto = "Hace {$tiempo_transcurrido->i} minuto" . ($tiempo_transcurrido->i > 1 ? 's' : '');
+    } elseif ($tiempo_transcurrido->d == 0) {
+        $ultimo_ingreso_texto = "Hace {$tiempo_transcurrido->h} hora" . ($tiempo_transcurrido->h > 1 ? 's' : '');
+    } elseif ($tiempo_transcurrido->d < 30) {
+        $ultimo_ingreso_texto = "Hace {$tiempo_transcurrido->d} día" . ($tiempo_transcurrido->d > 1 ? 's' : '');
     } else {
-        $ultimo_ingreso_texto = 'Último ingreso hace unos segundos';
+        $ultimo_ingreso_texto = $fecha_ultimo->format('d/m/Y H:i');
     }
+} else {
+    $ultimo_ingreso_texto = 'Primer ingreso';
 }
 
 // Obtener solo el primer nombre para el saludo
@@ -582,6 +586,227 @@ $primer_nombre = $nombre_parts[0];
             background: #f0f4f8;
         }
 
+        /* ESTILOS DEL MODAL */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 9999;
+            animation: fadeIn 0.3s ease;
+        }
+
+        .modal.show {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        .modal-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(4px);
+        }
+
+        .modal-content {
+            position: relative;
+            z-index: 10000;
+            max-width: 600px;
+            width: 90%;
+            max-height: 90vh;
+            overflow-y: auto;
+            animation: slideUp 0.3s ease;
+        }
+
+        @keyframes slideUp {
+            from {
+                transform: translateY(50px);
+                opacity: 0;
+            }
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+
+        .modal-close {
+            position: absolute;
+            top: -15px;
+            right: -15px;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: white;
+            border: none;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2rem;
+            color: #64748b;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            transition: all 0.3s;
+            z-index: 10001;
+        }
+
+        .modal-close:hover {
+            background: #dc2626;
+            color: white;
+            transform: rotate(90deg);
+        }
+
+        .broker-card-modal {
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
+            overflow: hidden;
+        }
+
+        .broker-header-modal {
+            background: linear-gradient(135deg, #004B93 0%, #0066B3 100%);
+            color: white;
+            padding: 2rem;
+            text-align: center;
+        }
+
+        .broker-avatar-modal {
+            width: 100px;
+            height: 100px;
+            border-radius: 50%;
+            background: white;
+            margin: 0 auto 1rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2.5rem;
+            color: #004B93;
+            border: 4px solid rgba(255,255,255,0.3);
+        }
+
+        .broker-name-modal {
+            font-size: 1.5rem;
+            font-weight: 700;
+            margin-bottom: 0.25rem;
+        }
+
+        .broker-title-modal {
+            font-size: 0.95rem;
+            opacity: 0.9;
+        }
+
+        .broker-body-modal {
+            padding: 2rem;
+        }
+
+        .contact-methods-modal {
+            display: grid;
+            gap: 0.75rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .contact-method-modal {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            padding: 1rem;
+            background: #f8fafc;
+            border-radius: 10px;
+            transition: all 0.3s;
+            cursor: pointer;
+            border: 2px solid transparent;
+            text-decoration: none;
+        }
+
+        .contact-method-modal:hover {
+            background: #f0f7ff;
+            border-color: #004B93;
+            transform: translateX(5px);
+        }
+
+        .contact-icon-modal {
+            width: 45px;
+            height: 45px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #004B93 0%, #0066B3 100%);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2rem;
+            flex-shrink: 0;
+        }
+
+        .contact-info-modal {
+            flex: 1;
+        }
+
+        .contact-label-modal {
+            font-size: 0.75rem;
+            color: #64748b;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 0.2rem;
+        }
+
+        .contact-value-modal {
+            font-size: 1rem;
+            font-weight: 600;
+            color: #1a2e57;
+        }
+
+        .contact-action-modal {
+            color: #004B93;
+            font-size: 1.1rem;
+        }
+
+        .availability-section-modal {
+            background: #f0f7ff;
+            border-radius: 10px;
+            padding: 1.25rem;
+        }
+
+        .availability-title-modal {
+            font-weight: 600;
+            color: #1a2e57;
+            margin-bottom: 0.75rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.95rem;
+        }
+
+        .availability-hours-modal {
+            display: grid;
+            gap: 0.5rem;
+            font-size: 0.85rem;
+        }
+
+        .hour-row-modal {
+            display: flex;
+            justify-content: space-between;
+            padding: 0.4rem 0;
+        }
+
+        .day-modal {
+            color: #64748b;
+        }
+
+        .hours-modal {
+            font-weight: 600;
+            color: #1a2e57;
+        }
+
         @media (max-width: 1200px) {
             .stats-grid {
                 gap: 1rem;
@@ -707,9 +932,40 @@ $primer_nombre = $nombre_parts[0];
             .shortcuts-grid {
                 grid-template-columns: repeat(3, 1fr);
             }
+
+            .modal-content {
+                width: 95%;
+                max-height: 95vh;
+            }
+            
+            .modal-close {
+                top: -10px;
+                right: -10px;
+                width: 35px;
+                height: 35px;
+            }
+            
+            .broker-body-modal {
+                padding: 1.5rem;
+            }
+            
+            .broker-header-modal {
+                padding: 1.5rem;
+            }
+            
+            .broker-avatar-modal {
+                width: 80px;
+                height: 80px;
+                font-size: 2rem;
+            }
+            
+            .contact-value-modal {
+                font-size: 0.9rem;
+            }
         }
     </style>
 </head>
+
 <body>
     <header class="header">
         <div class="header-top">
@@ -873,7 +1129,7 @@ $primer_nombre = $nombre_parts[0];
                         </div>
                         <span class="shortcut-label">Realizar un Pago</span>
                     </div>
-                    <div class="shortcut-item" onclick="window.location.href='contacto.php'">
+                    <div class="shortcut-item" onclick="openBrokerModal()">
                         <div class="shortcut-icon">
                             <i class="fas fa-users"></i>
                         </div>
@@ -909,6 +1165,103 @@ $primer_nombre = $nombre_parts[0];
             </a>
         </div>
     </footer>
+
+    <!-- Modal de Contacto con Corredor -->
+    <div id="brokerModal" class="modal">
+        <div class="modal-overlay" onclick="closeBrokerModal()"></div>
+        <div class="modal-content">
+            <button class="modal-close" onclick="closeBrokerModal()">
+                <i class="fas fa-times"></i>
+            </button>
+            
+            <div class="broker-card-modal">
+                <div class="broker-header-modal">
+                    <div class="broker-avatar-modal">
+                        <i class="fas fa-user-tie"></i>
+                    </div>
+                    <div class="broker-name-modal">Lic. Carlos Henríquez</div>
+                    <div class="broker-title-modal">Tu Asesor de Seguros</div>
+                </div>
+
+                <div class="broker-body-modal">
+                    <div class="contact-methods-modal">
+                        <a href="tel:+5076123-4567" class="contact-method-modal">
+                            <div class="contact-icon-modal">
+                                <i class="fas fa-phone"></i>
+                            </div>
+                            <div class="contact-info-modal">
+                                <div class="contact-label-modal">Teléfono</div>
+                                <div class="contact-value-modal">+507 6123-4567</div>
+                            </div>
+                            <div class="contact-action-modal">
+                                <i class="fas fa-chevron-right"></i>
+                            </div>
+                        </a>
+
+                        <a href="https://wa.me/50761234567" target="_blank" class="contact-method-modal">
+                            <div class="contact-icon-modal">
+                                <i class="fab fa-whatsapp"></i>
+                            </div>
+                            <div class="contact-info-modal">
+                                <div class="contact-label-modal">WhatsApp</div>
+                                <div class="contact-value-modal">+507 6123-4567</div>
+                            </div>
+                            <div class="contact-action-modal">
+                                <i class="fas fa-chevron-right"></i>
+                            </div>
+                        </a>
+
+                        <a href="mailto:carlos.henriquez@hya.com.pa" class="contact-method-modal">
+                            <div class="contact-icon-modal">
+                                <i class="fas fa-envelope"></i>
+                            </div>
+                            <div class="contact-info-modal">
+                                <div class="contact-label-modal">Correo Electrónico</div>
+                                <div class="contact-value-modal">carlos.henriquez@hya.com.pa</div>
+                            </div>
+                            <div class="contact-action-modal">
+                                <i class="fas fa-chevron-right"></i>
+                            </div>
+                        </a>
+
+                        <div class="contact-method-modal" onclick="window.open('https://meet.google.com/', '_blank')">
+                            <div class="contact-icon-modal">
+                                <i class="fas fa-video"></i>
+                            </div>
+                            <div class="contact-info-modal">
+                                <div class="contact-label-modal">Videollamada</div>
+                                <div class="contact-value-modal">Agendar reunión virtual</div>
+                            </div>
+                            <div class="contact-action-modal">
+                                <i class="fas fa-chevron-right"></i>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="availability-section-modal">
+                        <div class="availability-title-modal">
+                            <i class="fas fa-clock"></i>
+                            Horario de Atención
+                        </div>
+                        <div class="availability-hours-modal">
+                            <div class="hour-row-modal">
+                                <span class="day-modal">Lunes - Viernes</span>
+                                <span class="hours-modal">8:00 AM - 5:00 PM</span>
+                            </div>
+                            <div class="hour-row-modal">
+                                <span class="day-modal">Sábados</span>
+                                <span class="hours-modal">Cerrado</span>
+                            </div>
+                            <div class="hour-row-modal">
+                                <span class="day-modal">Domingos</span>
+                                <span class="hours-modal">Cerrado</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 
     <script>
         function togglePolicies() {
@@ -946,16 +1299,32 @@ $primer_nombre = $nombre_parts[0];
         function descargarPoliza(polizaId) {
             event.stopPropagation();
             alert('Descargando póliza ' + polizaId + '...');
-            // Aquí iría la lógica real de descarga
             console.log('Descargar póliza:', polizaId);
         }
 
         function realizarPago(polizaId) {
             event.stopPropagation();
             alert('Redirigiendo a realizar pago de póliza ' + polizaId + '...');
-            // Aquí iría la redirección real
             console.log('Realizar pago:', polizaId);
         }
+
+        // Funciones del Modal
+        function openBrokerModal() {
+            document.getElementById('brokerModal').classList.add('show');
+            document.body.style.overflow = 'hidden';
+        }
+
+        function closeBrokerModal() {
+            document.getElementById('brokerModal').classList.remove('show');
+            document.body.style.overflow = 'auto';
+        }
+
+        // Cerrar modal con tecla ESC
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                closeBrokerModal();
+            }
+        });
     </script>
 </body>
 </html>
