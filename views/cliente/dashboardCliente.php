@@ -11,32 +11,66 @@ require_once __DIR__ . '/../../config/database.php';
 // Obtener datos del usuario
 $user_name = $_SESSION['user_name'] ?? 'Usuario';
 $user_email = $_SESSION['user_email'] ?? '';
-$ultimo_ingreso = $_SESSION['ultimo_ingreso'] ?? null;
 
-// Formatear el último ingreso
-if ($ultimo_ingreso) {
-    $fecha_ultimo = new DateTime($ultimo_ingreso);
-    $fecha_actual = new DateTime();
-    $tiempo_transcurrido = $fecha_actual->diff($fecha_ultimo);
-    
-    if ($tiempo_transcurrido->i < 1 && $tiempo_transcurrido->h == 0 && $tiempo_transcurrido->d == 0) {
+// Calcular tiempo desde el login usando $_SESSION['login_time'] (guardado en login.php)
+$ultimo_ingreso_texto = 'Primer ingreso';
+if (isset($_SESSION['login_time'])) {
+    $segundos = time() - $_SESSION['login_time'];
+    $minutos  = (int)($segundos / 60);
+    $horas    = (int)($segundos / 3600);
+    $dias     = (int)($segundos / 86400);
+
+    if ($segundos < 60) {
         $ultimo_ingreso_texto = "Hace unos segundos";
-    } elseif ($tiempo_transcurrido->h == 0 && $tiempo_transcurrido->d == 0) {
-        $ultimo_ingreso_texto = "Hace {$tiempo_transcurrido->i} minuto" . ($tiempo_transcurrido->i > 1 ? 's' : '');
-    } elseif ($tiempo_transcurrido->d == 0) {
-        $ultimo_ingreso_texto = "Hace {$tiempo_transcurrido->h} hora" . ($tiempo_transcurrido->h > 1 ? 's' : '');
-    } elseif ($tiempo_transcurrido->d < 30) {
-        $ultimo_ingreso_texto = "Hace {$tiempo_transcurrido->d} día" . ($tiempo_transcurrido->d > 1 ? 's' : '');
+    } elseif ($minutos < 60) {
+        $ultimo_ingreso_texto = "Hace $minutos minuto" . ($minutos > 1 ? 's' : '');
+    } elseif ($horas < 24) {
+        $ultimo_ingreso_texto = "Hace $horas hora" . ($horas > 1 ? 's' : '');
+    } elseif ($dias < 30) {
+        $ultimo_ingreso_texto = "Hace $dias día" . ($dias > 1 ? 's' : '');
     } else {
-        $ultimo_ingreso_texto = $fecha_ultimo->format('d/m/Y H:i');
+        $ultimo_ingreso_texto = date('d/m/Y H:i', $_SESSION['login_time']);
     }
-} else {
-    $ultimo_ingreso_texto = 'Primer ingreso';
 }
 
 // Obtener solo el primer nombre para el saludo
 $nombre_parts = explode(' ', $user_name);
 $primer_nombre = $nombre_parts[0];
+
+
+
+// Valores por defecto (se usan si la tabla aún no existe o no hay asignación)
+$broker = [
+    'nombre_completo' => 'Ejecutiva de Ventas',
+    'titulo'          => 'Lic.',
+    'email'           => 'ventas@haseguros.com',
+];
+
+try {
+    $pdo = Database::getInstance()->getConnection();
+
+    // clientes.usuario_id vincula al usuario logueado
+    // clientes.ejecutivo_id vincula al asesor asignado
+    $stmt = $pdo->prepare("
+        SELECT a.nombre_completo, a.titulo, a.email
+        FROM clientes c
+        INNER JOIN asesores a ON c.ejecutivo_id = a.id
+        WHERE c.usuario_id = :user_id
+        LIMIT 1
+    ");
+    $stmt->execute([':user_id' => $_SESSION['user_id']]);
+    $asesor = $stmt->fetch(PDO::FETCH_ASSOC);
+
+    if ($asesor) {
+        $broker = $asesor;
+    }
+} catch (Exception $e) {
+    // Si la tabla aún no existe, se usan los valores por defecto
+    // error_log($e->getMessage());
+}
+
+$broker_nombre_display = htmlspecialchars($broker['titulo'] . ' ' . $broker['nombre_completo']);
+$broker_email          = htmlspecialchars($broker['email']);
 ?>
 <!DOCTYPE html>
 <html lang="es">
@@ -52,10 +86,17 @@ $primer_nombre = $nombre_parts[0];
             box-sizing: border-box;
         }
 
+        html {
+            height: 100%;
+        }
+
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
             background: #f5f7fa;
             color: #2c3e50;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
         }
 
         /* Header */
@@ -64,13 +105,14 @@ $primer_nombre = $nombre_parts[0];
             color: white;
             padding: 0;
             box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            flex-shrink: 0;
         }
 
         .header-top {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            padding: 0.75rem 2rem;
+            padding: 0.75rem 3vw;
             border-bottom: 1px solid rgba(255,255,255,0.1);
         }
 
@@ -134,7 +176,7 @@ $primer_nombre = $nombre_parts[0];
             display: flex;
             justify-content: space-between;
             align-items: center;
-            padding: 0 2rem;
+            padding: 0 3vw;
         }
 
         .nav-left {
@@ -181,11 +223,12 @@ $primer_nombre = $nombre_parts[0];
         }
 
         .container {
-            max-width: 100%;
-            margin: 0 auto;
-            padding: 2rem;
+            flex: 1 0 auto;
+            width: 100%;
+            margin: 0;
+            padding: 2rem 3vw;
             display: grid;
-            grid-template-columns: 1fr 280px;
+            grid-template-columns: 1fr minmax(280px, 22vw);
             gap: 2rem;
         }
 
@@ -288,10 +331,11 @@ $primer_nombre = $nombre_parts[0];
         }
 
         .footer {
+            flex-shrink: 0;
             background: linear-gradient(135deg, #004B93 0%, #0066B3 100%);
             color: white;
-            padding: 1.5rem 2rem;
-            margin-top: 3rem;
+            padding: 1.5rem 3vw;
+            margin-top: auto;
             display: flex;
             justify-content: space-between;
             align-items: center;
@@ -586,7 +630,11 @@ $primer_nombre = $nombre_parts[0];
             background: #f0f4f8;
         }
 
-        /* ESTILOS DEL MODAL */
+        /* ============================================================
+           MODAL — corregido:
+           - Sin overflow-x (elimina barra horizontal)
+           - Botón X dentro del flujo del modal, siempre visible
+        ============================================================ */
         .modal {
             display: none;
             position: fixed;
@@ -596,6 +644,8 @@ $primer_nombre = $nombre_parts[0];
             height: 100%;
             z-index: 9999;
             animation: fadeIn 0.3s ease;
+            /* PUNTO 3: Sin overflow horizontal */
+            overflow-x: hidden;
         }
 
         .modal.show {
@@ -624,9 +674,13 @@ $primer_nombre = $nombre_parts[0];
             z-index: 10000;
             max-width: 600px;
             width: 90%;
+            /* PUNTO 3: Quitar overflow-x del modal-content también */
             max-height: 90vh;
             overflow-y: auto;
+            overflow-x: hidden;
             animation: slideUp 0.3s ease;
+            /* PUNTO 2: Padding superior para que el botón X no se corte */
+            padding-top: 1.5rem;
         }
 
         @keyframes slideUp {
@@ -640,29 +694,31 @@ $primer_nombre = $nombre_parts[0];
             }
         }
 
+        /* PUNTO 2: Botón X reposicionado dentro del card, no flotando afuera */
         .modal-close {
             position: absolute;
-            top: -15px;
-            right: -15px;
-            width: 40px;
-            height: 40px;
+            /* Dentro del borde superior del card, con margen interior */
+            top: 1.5rem;
+            right: 1rem;
+            width: 36px;
+            height: 36px;
             border-radius: 50%;
-            background: white;
-            border: none;
+            background: rgba(255, 255, 255, 0.25);
+            border: 2px solid rgba(255, 255, 255, 0.6);
             cursor: pointer;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 1.2rem;
-            color: #64748b;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            font-size: 1rem;
+            color: white;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
             transition: all 0.3s;
             z-index: 10001;
         }
 
         .modal-close:hover {
-            background: #dc2626;
-            color: white;
+            background: rgba(220, 38, 38, 0.85);
+            border-color: transparent;
             transform: rotate(90deg);
         }
 
@@ -676,7 +732,8 @@ $primer_nombre = $nombre_parts[0];
         .broker-header-modal {
             background: linear-gradient(135deg, #004B93 0%, #0066B3 100%);
             color: white;
-            padding: 2rem;
+            /* PUNTO 2: Espacio extra a la derecha para que el botón X no tape el nombre */
+            padding: 2rem 3.5rem 2rem 2rem;
             text-align: center;
         }
 
@@ -808,25 +865,11 @@ $primer_nombre = $nombre_parts[0];
         }
 
         @media (max-width: 1200px) {
-            .stats-grid {
-                gap: 1rem;
-            }
-            
-            .stat-card {
-                padding: 1.25rem 1rem;
-            }
-            
-            .stat-label {
-                font-size: 0.65rem;
-            }
-            
-            .stat-subtitle {
-                font-size: 0.7rem;
-            }
-            
-            .stat-value {
-                font-size: clamp(1.5rem, 3.5vw, 2rem);
-            }
+            .stats-grid { gap: 1rem; }
+            .stat-card { padding: 1.25rem 1rem; }
+            .stat-label { font-size: 0.65rem; }
+            .stat-subtitle { font-size: 0.7rem; }
+            .stat-value { font-size: clamp(1.5rem, 3.5vw, 2rem); }
         }
 
         @media (max-width: 992px) {
@@ -834,34 +877,13 @@ $primer_nombre = $nombre_parts[0];
                 grid-template-columns: 1fr;
                 padding: 1rem;
             }
-
-            .sidebar {
-                order: 2;
-            }
-
-            .main-content {
-                order: 1;
-            }
-            
-            .stats-grid {
-                gap: 0.75rem;
-            }
-            
-            .stat-card {
-                padding: 1rem;
-            }
-            
-            .stat-label {
-                font-size: 0.6rem;
-            }
-            
-            .stat-subtitle {
-                font-size: 0.65rem;
-            }
-            
-            .stat-value {
-                font-size: clamp(1.25rem, 3vw, 1.75rem);
-            }
+            .sidebar { order: 2; }
+            .main-content { order: 1; }
+            .stats-grid { gap: 0.75rem; }
+            .stat-card { padding: 1rem; }
+            .stat-label { font-size: 0.6rem; }
+            .stat-subtitle { font-size: 0.65rem; }
+            .stat-value { font-size: clamp(1.25rem, 3vw, 1.75rem); }
         }
 
         @media (max-width: 768px) {
@@ -870,98 +892,62 @@ $primer_nombre = $nombre_parts[0];
                 gap: 1rem;
                 padding: 1rem;
             }
-
             .nav-menu {
                 flex-wrap: wrap;
                 padding: 0 1rem;
             }
-
             .nav-item {
                 padding: 0.75rem 1rem;
                 font-size: 0.85rem;
             }
-            
             .stats-grid {
                 grid-template-columns: repeat(4, minmax(140px, 1fr));
                 gap: 0.5rem;
                 overflow-x: auto;
                 padding-bottom: 0.5rem;
             }
-            
             .stat-card {
                 padding: 0.75rem;
                 min-width: 140px;
             }
-            
-            .stat-label {
-                font-size: 0.6rem;
-            }
-            
-            .stat-value {
-                font-size: 1.2rem;
-            }
-            
-            .table-header {
-                display: none;
-            }
-            
+            .stat-label { font-size: 0.6rem; }
+            .stat-value { font-size: 1.2rem; }
+            .table-header { display: none; }
             .policy-row {
                 grid-template-columns: 1fr;
                 gap: 0.75rem;
                 position: relative;
                 padding-right: 3rem;
             }
-            
             .more-options {
                 position: absolute;
                 top: 1rem;
                 right: 1rem;
             }
-
             .footer {
                 flex-direction: column;
                 gap: 1rem;
                 text-align: center;
             }
-
             .footer-links {
                 flex-direction: column;
                 gap: 0.75rem;
             }
-
             .shortcuts-grid {
                 grid-template-columns: repeat(3, 1fr);
             }
-
             .modal-content {
                 width: 95%;
                 max-height: 95vh;
             }
-            
-            .modal-close {
-                top: -10px;
-                right: -10px;
-                width: 35px;
-                height: 35px;
-            }
-            
-            .broker-body-modal {
-                padding: 1.5rem;
-            }
-            
-            .broker-header-modal {
-                padding: 1.5rem;
-            }
-            
+            .broker-body-modal { padding: 1.5rem; }
+            .broker-header-modal { padding: 1.5rem 3rem 1.5rem 1.5rem; }
             .broker-avatar-modal {
                 width: 80px;
                 height: 80px;
                 font-size: 2rem;
             }
-            
-            .contact-value-modal {
-                font-size: 0.9rem;
-            }
+            .contact-value-modal { font-size: 0.9rem; }
         }
     </style>
 </head>
@@ -1170,7 +1156,8 @@ $primer_nombre = $nombre_parts[0];
     <div id="brokerModal" class="modal">
         <div class="modal-overlay" onclick="closeBrokerModal()"></div>
         <div class="modal-content">
-            <button class="modal-close" onclick="closeBrokerModal()">
+            <!-- PUNTO 2: Botón X dentro del header azul, siempre visible -->
+            <button class="modal-close" onclick="closeBrokerModal()" title="Cerrar">
                 <i class="fas fa-times"></i>
             </button>
             
@@ -1179,51 +1166,57 @@ $primer_nombre = $nombre_parts[0];
                     <div class="broker-avatar-modal">
                         <i class="fas fa-user-tie"></i>
                     </div>
-                    <div class="broker-name-modal">Lic. Carlos Henríquez</div>
+                    <!-- PUNTO 1: Nombre dinámico desde BD -->
+                    <div class="broker-name-modal"><?php echo $broker_nombre_display; ?></div>
                     <div class="broker-title-modal">Tu Asesor de Seguros</div>
                 </div>
 
                 <div class="broker-body-modal">
                     <div class="contact-methods-modal">
-                        <a href="tel:+5076123-4567" class="contact-method-modal">
+
+                        <!-- PUNTO 4: Teléfono fijo de oficina -->
+                        <a href="tel:+50722245453" class="contact-method-modal">
                             <div class="contact-icon-modal">
                                 <i class="fas fa-phone"></i>
                             </div>
                             <div class="contact-info-modal">
                                 <div class="contact-label-modal">Teléfono</div>
-                                <div class="contact-value-modal">+507 6123-4567</div>
+                                <div class="contact-value-modal">+507 224-5453</div>
                             </div>
                             <div class="contact-action-modal">
                                 <i class="fas fa-chevron-right"></i>
                             </div>
                         </a>
 
-                        <a href="https://wa.me/50761234567" target="_blank" class="contact-method-modal">
+                        <!-- PUNTO 4: WhatsApp fijo -->
+                        <a href="https://wa.link/mipe3l" target="_blank" class="contact-method-modal">
                             <div class="contact-icon-modal">
                                 <i class="fab fa-whatsapp"></i>
                             </div>
                             <div class="contact-info-modal">
                                 <div class="contact-label-modal">WhatsApp</div>
-                                <div class="contact-value-modal">+507 6123-4567</div>
+                                <div class="contact-value-modal">+507 6999-1608</div>
                             </div>
                             <div class="contact-action-modal">
                                 <i class="fas fa-chevron-right"></i>
                             </div>
                         </a>
 
-                        <a href="mailto:carlos.henriquez@hya.com.pa" class="contact-method-modal">
+                        <!-- PUNTO 1: Solo el correo es dinámico -->
+                        <a href="mailto:<?php echo $broker_email; ?>" class="contact-method-modal">
                             <div class="contact-icon-modal">
                                 <i class="fas fa-envelope"></i>
                             </div>
                             <div class="contact-info-modal">
                                 <div class="contact-label-modal">Correo Electrónico</div>
-                                <div class="contact-value-modal">carlos.henriquez@hya.com.pa</div>
+                                <div class="contact-value-modal"><?php echo $broker_email; ?></div>
                             </div>
                             <div class="contact-action-modal">
                                 <i class="fas fa-chevron-right"></i>
                             </div>
                         </a>
 
+                        <!-- PUNTO 4: Videollamada fija -->
                         <div class="contact-method-modal" onclick="window.open('https://meet.google.com/', '_blank')">
                             <div class="contact-icon-modal">
                                 <i class="fas fa-video"></i>
@@ -1267,7 +1260,6 @@ $primer_nombre = $nombre_parts[0];
         function togglePolicies() {
             const content = document.getElementById('policiesContent');
             const toggle = document.getElementById('policiesToggle');
-            
             content.classList.toggle('collapsed');
             toggle.classList.toggle('rotated');
         }
@@ -1275,40 +1267,30 @@ $primer_nombre = $nombre_parts[0];
         function toggleSidebar() {
             const content = document.getElementById('sidebarContent');
             const toggle = document.getElementById('sidebarToggle');
-            
             content.classList.toggle('collapsed');
             toggle.classList.toggle('rotated');
         }
 
         function toggleDetails(id) {
             const details = document.getElementById(`details-${id}`);
-            
             document.querySelectorAll('.policy-details-expanded').forEach(detail => {
                 if (detail.id !== `details-${id}`) {
                     detail.style.display = 'none';
                 }
             });
-            
-            if (details.style.display === 'block') {
-                details.style.display = 'none';
-            } else {
-                details.style.display = 'block';
-            }
+            details.style.display = details.style.display === 'block' ? 'none' : 'block';
         }
 
         function descargarPoliza(polizaId) {
             event.stopPropagation();
             alert('Descargando póliza ' + polizaId + '...');
-            console.log('Descargar póliza:', polizaId);
         }
 
         function realizarPago(polizaId) {
             event.stopPropagation();
             alert('Redirigiendo a realizar pago de póliza ' + polizaId + '...');
-            console.log('Realizar pago:', polizaId);
         }
 
-        // Funciones del Modal
         function openBrokerModal() {
             document.getElementById('brokerModal').classList.add('show');
             document.body.style.overflow = 'hidden';
@@ -1319,11 +1301,8 @@ $primer_nombre = $nombre_parts[0];
             document.body.style.overflow = 'auto';
         }
 
-        // Cerrar modal con tecla ESC
         document.addEventListener('keydown', function(e) {
-            if (e.key === 'Escape') {
-                closeBrokerModal();
-            }
+            if (e.key === 'Escape') closeBrokerModal();
         });
     </script>
 </body>

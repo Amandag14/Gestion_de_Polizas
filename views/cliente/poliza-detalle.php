@@ -1,3 +1,43 @@
+<?php
+session_start();
+
+// Verificar que el usuario esté autenticado
+if (!isset($_SESSION['user_id']) || !isset($_SESSION['rol_id']) || $_SESSION['rol_id'] != 2) {
+    header('Location: ../auth/login.php');
+    exit();
+}
+require_once __DIR__ . '/../../config/database.php';
+
+// Obtener datos del usuario
+$user_name = $_SESSION['user_name'] ?? 'Usuario';
+$user_email = $_SESSION['user_email'] ?? '';
+
+// Calcular tiempo desde el login usando $_SESSION['login_time'] (guardado en login.php)
+$ultimo_ingreso_texto = 'Primer ingreso';
+if (isset($_SESSION['login_time'])) {
+    $segundos = time() - $_SESSION['login_time'];
+    $minutos  = (int)($segundos / 60);
+    $horas    = (int)($segundos / 3600);
+    $dias     = (int)($segundos / 86400);
+
+    if ($segundos < 60) {
+        $ultimo_ingreso_texto = "Hace unos segundos";
+    } elseif ($minutos < 60) {
+        $ultimo_ingreso_texto = "Hace $minutos minuto" . ($minutos > 1 ? 's' : '');
+    } elseif ($horas < 24) {
+        $ultimo_ingreso_texto = "Hace $horas hora" . ($horas > 1 ? 's' : '');
+    } elseif ($dias < 30) {
+        $ultimo_ingreso_texto = "Hace $dias día" . ($dias > 1 ? 's' : '');
+    } else {
+        $ultimo_ingreso_texto = date('d/m/Y H:i', $_SESSION['login_time']);
+    }
+}
+
+// Obtener solo el primer nombre para el saludo
+$nombre_parts = explode(' ', $user_name);
+$primer_nombre = $nombre_parts[0];
+?>
+
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -678,7 +718,7 @@
             <div class="nav-left">
                 <a href="dashboardCliente.php" class="nav-item active">Pólizas</a>
                 <a href="documentos.php" class="nav-item">Documentos</a>
-                <a href="reclamos.php" class="nav-item">Contacto</a>
+                <a href="reclamos.php" class="nav-item">Reclamos</a>
                 <a href="perfil.php" class="nav-item">Mi Perfil</a>
             </div>
             <div class="user-info">

@@ -7,25 +7,34 @@ if (!isset($_SESSION['user_id'])) {
     exit;
 }
 
+// Obtener datos del usuario
 $user_name = $_SESSION['user_name'] ?? 'Usuario';
-$ultimo_ingreso = $_SESSION['ultimo_ingreso'] ?? null;
+$user_email = $_SESSION['user_email'] ?? '';
 
+// Calcular tiempo desde el login usando $_SESSION['login_time']
 $ultimo_ingreso_texto = 'Primer ingreso';
-if ($ultimo_ingreso) {
-    $fecha_ultimo = new DateTime($ultimo_ingreso);
-    $fecha_actual = new DateTime();
-    $diferencia = $fecha_actual->diff($fecha_ultimo);
-    
-    if ($diferencia->days > 0) {
-        $ultimo_ingreso_texto = 'Último ingreso hace ' . $diferencia->days . ' día' . ($diferencia->days > 1 ? 's' : '');
-    } elseif ($diferencia->h > 0) {
-        $ultimo_ingreso_texto = 'Último ingreso hace ' . $diferencia->h . ' hora' . ($diferencia->h > 1 ? 's' : '');
-    } elseif ($diferencia->i > 0) {
-        $ultimo_ingreso_texto = 'Último ingreso hace ' . $diferencia->i . ' minuto' . ($diferencia->i > 1 ? 's' : '');
+if (isset($_SESSION['login_time'])) {
+    $segundos = time() - $_SESSION['login_time'];
+    $minutos  = (int)($segundos / 60);
+    $horas    = (int)($segundos / 3600);
+    $dias     = (int)($segundos / 86400);
+
+    if ($segundos < 60) {
+        $ultimo_ingreso_texto = "Hace unos segundos";
+    } elseif ($minutos < 60) {
+        $ultimo_ingreso_texto = "Hace $minutos minuto" . ($minutos > 1 ? 's' : '');
+    } elseif ($horas < 24) {
+        $ultimo_ingreso_texto = "Hace $horas hora" . ($horas > 1 ? 's' : '');
+    } elseif ($dias < 30) {
+        $ultimo_ingreso_texto = "Hace $dias día" . ($dias > 1 ? 's' : '');
     } else {
-        $ultimo_ingreso_texto = 'Último ingreso hace unos segundos';
+        $ultimo_ingreso_texto = date('d/m/Y H:i', $_SESSION['login_time']);
     }
 }
+
+// Obtener solo el primer nombre para el saludo
+$nombre_parts = explode(' ', $user_name);
+$primer_nombre = $nombre_parts[0];
 
 $primer_nombre = explode(' ', $user_name)[0];
 ?>
